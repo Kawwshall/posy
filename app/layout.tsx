@@ -23,9 +23,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Posy — the friend with good taste who never forgets a birthday",
+  title: "Posy · the friend with good taste who never forgets a birthday",
   description:
-    "You meant to send something. Posy actually does. Text one line; a gifting concierge finds the right thing and puts it in the mail — paid with a one-time card, never your real one.",
+    "You meant to send something. Posy actually does. Text one line; a gifting concierge finds the right thing and puts it in the mail, paid with a one-time card, never your real one.",
 };
 
 export default function RootLayout({

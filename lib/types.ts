@@ -1,4 +1,4 @@
-// Shared domain types for Posy — the agentic gifting concierge.
+// Shared domain types for Posy · the agentic gifting concierge.
 
 export type Money = number; // stored in whole USD dollars for demo simplicity
 
@@ -11,7 +11,6 @@ export interface GiftProduct {
   merchantUrl: string;
   category: string;
   tags: string[];
-  emoji: string;
   rating: number; // 0-5
   deliveryDays: number;
 }

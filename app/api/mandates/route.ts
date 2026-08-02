@@ -4,7 +4,7 @@ import { db, log } from "@/lib/store";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Pause / resume / cancel a mandate — mirrors Prava's mandate lifecycle tools.
+// Pause / resume / cancel a mandate. Mirrors Prava's mandate lifecycle tools.
 export async function POST(req: NextRequest) {
   const { id, action } = await req.json();
   const m = db().mandates.find((x) => x.id === id);
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   log({
     kind: "mandate_created",
-    title: `Mandate ${action}d — ${m.label}`,
+    title: `Mandate ${action}d · ${m.label}`,
     detail: `Status is now ${m.status}. You are always in control.`,
   });
   return NextResponse.json({ ok: true, mandate: m });

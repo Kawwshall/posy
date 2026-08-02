@@ -42,7 +42,7 @@ h3 {
   font-weight: 500;
 }
 
-/* Mono for money, receipts, refs, ledger labels — precision as texture */
+/* Mono for money, receipts, refs, ledger labels · precision as texture */
 .mono {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-feature-settings: "tnum" 1;

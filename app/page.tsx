@@ -22,10 +22,10 @@ export default function Home() {
             </h1>
             <p className="mt-6 max-w-md text-[17px] leading-relaxed text-muted">
               You knew it was her birthday. You thought about it Tuesday. Then
-              the week happened. Text Posy one line — who it&apos;s for, roughly
-              what you&apos;d spend — and it finds the right thing and puts it in
-              the mail. It pays with a card that works exactly once, so your real
-              number never leaves your pocket.
+              the week happened. Text Posy one line, just who it&apos;s for and
+              roughly what you&apos;d spend, and it finds the right thing and
+              puts it in the mail. It pays with a card that works exactly once,
+              so your real number never leaves your pocket.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
@@ -56,7 +56,7 @@ export default function Home() {
                 <B me>something for my mom&apos;s birthday, under $60, needs to land by friday</B>
                 <B>
                   Got it. I&apos;d send the hand-rolled silk scarf from Maison
-                  Lune — she mentioned wanting one, it&apos;s $58, and it arrives
+                  Lune. She mentioned wanting one, it&apos;s $58, and it arrives
                   Thursday. Sound right?
                 </B>
                 <B me>yes please</B>
@@ -87,7 +87,7 @@ export default function Home() {
             />
             <Step
               n="02"
-              title="It picks — and tells you why"
+              title="It picks, and tells you why"
               body="Not ten blue links. Two or three real options and an honest opinion about which one she'd actually like, in a sentence."
             />
             <Step
@@ -127,7 +127,7 @@ export default function Home() {
             <div className="space-y-5">
               <Rule
                 k="one card per gift"
-                v="Issued for one merchant, one amount, then dead. Your real card stays in your wallet — the merchant never sees it."
+                v="Issued for one merchant, one amount, then dead. Your real card stays in your wallet. The merchant never sees it."
               />
               <Rule
                 k="a ceiling you set"
@@ -135,11 +135,11 @@ export default function Home() {
               />
               <Rule
                 k="everything on the record"
-                v="What it searched, why it chose, what it charged — written down in an append-only log you can open anytime."
+                v="What it searched, why it chose, what it charged, all written down in an append-only log you can open anytime."
               />
               <Rule
                 k="recurring, but leashed"
-                v="Ask it to remember a birthday and it will — capped per charge, and cancellable in one tap."
+                v="Ask it to remember a birthday and it will, capped per charge, and cancellable in one tap."
               />
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function Home() {
           </p>
           <p className="font-display text-[1.6rem] leading-snug">
             I have a good mom and a bad memory. I&apos;ve sent enough apology
-            flowers to know the problem was never caring — it&apos;s the twenty
+            flowers to know the problem was never caring. It&apos;s the twenty
             minutes between caring and checkout, which I somehow never have.
           </p>
           <p className="mt-5 text-[17px] leading-relaxed text-muted">
@@ -174,7 +174,7 @@ export default function Home() {
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
             <div>
               <div className="flex items-center gap-2">
-                <Mark className="h-5 w-5" color="#F4EEE1" />
+                <Mark className="h-5 w-5" color="#F4EEE1" bg="#1C1712" />
                 <span className="font-display text-lg">Posy</span>
               </div>
               <p className="mt-2 max-w-sm text-sm text-paper/60">

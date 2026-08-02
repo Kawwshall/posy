@@ -3,7 +3,7 @@ import { GiftProduct, GuardrailDecision } from "./types";
 
 // The trust layer. Every candidate purchase is checked against the user's
 // spend policy BEFORE any card is issued. This is what makes an autonomous
-// agent safe to hand a payment credential — and it's exactly the
+// agent safe to hand a payment credential, and it's exactly the
 // transparency/control story Visa + Prava care about.
 export function checkGuardrails(
   product: GiftProduct,
@@ -49,7 +49,7 @@ export function checkGuardrails(
   if (allowed && product.price > g.requireApprovalOver) {
     requiresApproval = true;
     reasons.push(
-      `Over your $${g.requireApprovalOver} auto-approve threshold — needs your OK.`
+      `Over your $${g.requireApprovalOver} auto-approve line, so I'll need your OK.`
     );
   }
 

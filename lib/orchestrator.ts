@@ -52,7 +52,7 @@ async function executePurchase(
   const decision = checkGuardrails(product, brief.budget);
   log({
     kind: "guardrail_check",
-    title: `Guardrail check — ${product.title}`,
+    title: `Guardrail check · ${product.title}`,
     detail: decision.reasons.join(" "),
     amount: product.price,
     meta: { allowed: decision.allowed, requiresApproval: decision.requiresApproval },
@@ -62,7 +62,7 @@ async function executePurchase(
     log({ kind: "declined", title: "Purchase blocked by guardrails", detail: decision.reasons.join(" "), amount: product.price });
     return msg({
       role: "assistant",
-      text: `I held off — ${decision.reasons.join(" ")} Want me to find something within budget instead?`,
+      text: `I held off. ${decision.reasons.join(" ")} Want me to find something within budget instead?`,
     });
   }
 
@@ -142,8 +142,8 @@ export async function runTurn(
           maxCharges: /month/i.test(text) ? 12 : 5,
         });
         db().mandates.unshift(mandate);
-        log({ kind: "mandate_created", title: `Recurring mandate set — ${label}`, detail: `Scope: ${mandate.merchant} · cap $${mandate.cap}/charge · ${mandate.max_charges} charges max · pausable anytime`, amount: mandate.cap, meta: { mandate_id: mandate.id } });
-        messages.push(msg({ role: "assistant", text: `Done. I'll handle it ${mandate.recurring_frequency === "yearly" ? "every year" : "every month"} — capped at $${mandate.cap}, and you can call it off anytime.` }));
+        log({ kind: "mandate_created", title: `Recurring gift set · ${label}`, detail: `Scope: ${mandate.merchant} · cap $${mandate.cap}/charge · ${mandate.max_charges} charges max · pausable anytime`, amount: mandate.cap, meta: { mandate_id: mandate.id } });
+        messages.push(msg({ role: "assistant", text: `Done. I'll handle it ${mandate.recurring_frequency === "yearly" ? "every year" : "every month"}, capped at $${mandate.cap}, and you can call it off anytime.` }));
         messages.push(msg({ role: "assistant", rich: { kind: "mandate", data: mandate } }));
         return { messages, state: next };
       }
@@ -153,7 +153,7 @@ export async function runTurn(
     if (next.awaitingApprovalFor && next.lastOptions) {
       if (DECLINE.test(text) && !AFFIRM.test(text)) {
         next.awaitingApprovalFor = undefined;
-        messages.push(msg({ role: "assistant", text: "No worries — nothing sent. Want me to look for other options or adjust the budget?" }));
+        messages.push(msg({ role: "assistant", text: "No worries, nothing sent. Want me to look for other options or adjust the budget?" }));
         return { messages, state: next };
       }
       const selected = resolveSelection(text, next.lastOptions);

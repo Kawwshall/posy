@@ -94,7 +94,7 @@ export function heuristicBrief(text: string, prev: GiftBrief): GiftBrief {
 }
 
 export function scoreProducts(brief: GiftBrief): GiftProduct[] {
-  // What someone explicitly says they're into should dominate — it's the
+  // What someone explicitly says they're into should dominate. It's the
   // clearest signal of taste. Relationship/occasion are softer context.
   const interestTags = new Set((brief.interests || []).map((x) => x.toLowerCase()));
   const contextTags = new Set<string>();
@@ -130,10 +130,10 @@ export function scoreProducts(brief: GiftBrief): GiftProduct[] {
 function feasibilityNote(brief: GiftBrief, top: GiftProduct[]): string {
   const rec = top[0];
   const who = brief.recipient ? `your ${brief.recipient}` : "them";
-  const occ = brief.occasion ? `${brief.occasion} ` : "";
+  const occ = brief.occasion || "gift";
   const cap = brief.budget ? `, keeping it under $${brief.budget}` : "";
   const why = rec.description.split(".")[0].toLowerCase();
-  return `For ${who}'s ${occ}${occ ? "" : "gift"}${cap} — I'd send the ${rec.title.toLowerCase()}. ${why.charAt(0).toUpperCase()}${why.slice(1)}. A couple of other ideas below if you want options.`;
+  return `For ${who}'s ${occ}${cap}, I'd send the ${rec.title.toLowerCase()}. ${why.charAt(0).toUpperCase()}${why.slice(1)}. A couple of other ideas below if you want options.`;
 }
 
 export async function curate(

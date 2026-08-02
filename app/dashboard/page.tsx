@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Mark } from "@/components/Mark";
+import { Mark, Swatch } from "@/components/Mark";
 import { Guardrails, LedgerEntry, PravaMandate, Receipt } from "@/lib/types";
 
 interface StateResp {
@@ -80,7 +80,7 @@ export default function Dashboard() {
         <header className="mb-8">
           <h1 className="font-display text-3xl">How the money works</h1>
           <p className="mt-1 max-w-xl text-muted">
-            Every rule Posy follows and every dollar it&apos;s moved — in plain sight.
+            Every rule Posy follows and every dollar it&apos;s moved, in plain sight.
           </p>
         </header>
 
@@ -121,7 +121,7 @@ export default function Dashboard() {
                 <Slider label="ask me above" value={d.guardrails.requireApprovalOver} min={0} max={200} step={5} onChange={(v) => saveGuardrail({ requireApprovalOver: v })} />
               </div>
               <p className="mt-3 text-xs text-muted">
-                Anything over that last line, Posy stops and asks you first — right
+                Anything over that last line, Posy stops and asks you first, right
                 in the thread.
               </p>
             </Card>
@@ -163,14 +163,19 @@ export default function Dashboard() {
             </Card>
 
             <Card>
-              <h2 className="font-display text-xl">What it&apos;s bought</h2>
-              <div className="mt-3 space-y-2">
+              <h2 className="font-display text-xl">Money ledger</h2>
+              <p className="mb-3 mt-1 text-sm text-muted">
+                Who it went to, and how much. One line per gift.
+              </p>
+              <div className="space-y-2">
                 {d.receipts.length === 0 && <Empty>Nothing bought yet.</Empty>}
                 {d.receipts.map((r) => (
                   <div key={r.id} className="flex items-center gap-3 rounded-lg border border-line p-2.5">
-                    <div className="grid h-10 w-10 place-items-center rounded-lg bg-black/[0.03] text-xl">{r.product.emoji}</div>
+                    <Swatch title={r.product.title} category={r.product.category} className="h-10 w-10 text-base" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-ink">{r.product.title}</div>
+                      <div className="truncate text-sm font-medium text-ink">
+                        {r.product.title} <span className="font-normal text-muted">for {r.recipient || "someone"}</span>
+                      </div>
                       <div className="mono text-[11px] text-muted">{r.merchant} · {r.orderRef} · Visa ···· {r.card.last4}</div>
                     </div>
                     <div className="mono text-sm font-medium text-ink">${r.amount}</div>
@@ -183,7 +188,7 @@ export default function Dashboard() {
           {/* right column: ledger */}
           <Card>
             <div className="flex items-baseline justify-between">
-              <h2 className="font-display text-xl">Everything, on the record</h2>
+              <h2 className="font-display text-xl">Every action</h2>
               <span className="mono text-[11px] text-muted">{d.ledger.length} events</span>
             </div>
             <p className="mb-4 mt-1 text-sm text-muted">

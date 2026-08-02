@@ -9,8 +9,8 @@ import {
 // Prava client. Faithfully mirrors docs.prava.space. If PRAVA_SECRET_KEY is
 // set we hit the real sandbox; otherwise we run a high-fidelity mock that
 // returns the exact payload shapes (and the documented sandbox test card),
-// so the entire flow — session -> one-time Visa network token -> checkout ->
-// receipt — works end to end with zero credentials. Drop a key in .env.local
+// so the entire flow · session -> one-time Visa network token -> checkout ->
+// receipt · works end to end with zero credentials. Drop a key in .env.local
 // and it goes live with no code changes.
 // ---------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ export interface CreateSessionArgs {
   quantity?: number;
 }
 
-// POST /v1/sessions  — creates a merchant-scoped, amount-scoped payment intent.
+// POST /v1/sessions  · creates a merchant-scoped, amount-scoped payment intent.
 export async function createSession(
   args: CreateSessionArgs
 ): Promise<PravaSession> {
@@ -121,7 +121,7 @@ export async function createSession(
   return { ...body, mode: "live" as const };
 }
 
-// GET /v1/sessions/{id}/payment-result — returns single-use tokenized
+// GET /v1/sessions/{id}/payment-result · returns single-use tokenized
 // credentials once the user has approved (passkey). In mock mode we return
 // the documented sandbox test card immediately.
 export async function getPaymentResult(
@@ -209,7 +209,7 @@ export async function createMandate(args: {
   return { ...base, id: body.session_id || base.id };
 }
 
-// POST /v1/mandates/{id}/charge — pull a charge against an existing mandate.
+// POST /v1/mandates/{id}/charge · pull a charge against an existing mandate.
 export async function chargeMandate(
   mandateId: string,
   amount: number
