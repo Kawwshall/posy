@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Confetti } from "@/components/Confetti";
 import {
   AgentState,
   ChatMessage,
@@ -51,9 +52,14 @@ export default function DemoPage() {
   const [trace, setTrace] = useState<LedgerEntry[]>([]);
   const [modes, setModes] = useState<{ prava: string; openai: string; model: string }>();
   const [spend, setSpend] = useState<{ monthSpent: number; monthlyCap: number }>();
+  const [celebrate, setCelebrate] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const started = messages.length > 1;
+  const lastUserIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === "user") return i;
+    return -1;
+  })();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -98,6 +104,7 @@ export default function DemoPage() {
       for (let i = 0; i < out.length; i++) {
         await new Promise((r) => setTimeout(r, i === 0 ? 550 : 700));
         setMessages((m) => [...m, out[i]]);
+        if (out[i].rich?.kind === "receipt") setCelebrate((c) => c + 1);
       }
     } catch (e) {
       setMessages((m) => [
@@ -112,9 +119,10 @@ export default function DemoPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-posy-50 to-white">
+      <Confetti trigger={celebrate} />
       {/* top bar */}
       <div className="glass sticky top-0 z-40 border-b border-black/5">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-3">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-posy-600 text-white">🌸</span>
             Posy
@@ -148,9 +156,25 @@ export default function DemoPage() {
             </div>
 
             {/* messages */}
-            <div ref={scrollRef} className="imsg-scroll h-[460px] space-y-2 overflow-y-auto bg-[#f2f2f7] px-3 py-3">
-              {messages.map((m) => (
-                <MessageView key={m.id} m={m} onAction={send} />
+            <div
+              ref={scrollRef}
+              aria-live="polite"
+              className="imsg-scroll h-[460px] space-y-2 overflow-y-auto bg-[#f2f2f7] px-3 py-3"
+            >
+              {started && (
+                <div className="py-1 text-center text-[10px] font-medium uppercase tracking-wide text-black/30">
+                  iMessage · Today
+                </div>
+              )}
+              {messages.map((m, i) => (
+                <div key={m.id}>
+                  <MessageView m={m} onAction={send} />
+                  {i === lastUserIdx && (
+                    <div className="mt-0.5 pr-1 text-right text-[10px] font-medium text-black/35">
+                      {typing || i === messages.length - 1 ? "Delivered" : "Read"}
+                    </div>
+                  )}
+                </div>
               ))}
               {typing && <TypingBubble />}
             </div>
@@ -182,13 +206,16 @@ export default function DemoPage() {
               <button
                 onClick={() => send(input)}
                 disabled={!input.trim() || typing}
-                className="grid h-9 w-9 place-items-center rounded-full bg-imsg-blue text-white disabled:opacity-40"
-                aria-label="Send"
+                className="grid h-9 w-9 place-items-center rounded-full bg-imsg-blue text-white shadow-sm transition active:scale-90 disabled:opacity-40"
+                aria-label="Send message"
               >
                 ↑
               </button>
             </div>
           </div>
+          <p className="mt-3 text-center text-[11px] text-black/40">
+            🔒 Secured by Prava · every gift paid with a one-time Visa network token
+          </p>
         </div>
 
         {/* Live agent trace */}

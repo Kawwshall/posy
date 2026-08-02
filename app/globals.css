@@ -52,3 +52,22 @@ body {
   0%, 100% { opacity: 0.25; }
   50% { opacity: 1; }
 }
+
+/* Accessible focus rings for keyboard users */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #db2777;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
