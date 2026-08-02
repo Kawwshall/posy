@@ -1,0 +1,214 @@
+import { CATALOG } from "./catalog";
+import { chatJSON, openaiMode } from "./openai";
+import { GiftBrief, GiftProduct, OptionCard } from "./types";
+
+// ---------------------------------------------------------------------------
+// The gifting agent. Two responsibilities:
+//   1. Understand a free-text request into a structured GiftBrief.
+//   2. Curate 3 candidate gifts from the merchant catalog + pick a favorite.
+// Live path uses OpenAI (structured JSON). Keyless path uses a genuinely
+// useful heuristic so the demo always works.
+// ---------------------------------------------------------------------------
+
+const RELATIONSHIP_TAGS: Record<string, string[]> = {
+  mom: ["mom", "her", "self-care", "cozy"],
+  mother: ["mom", "her", "self-care"],
+  dad: ["dad", "him", "coffee", "classic"],
+  father: ["dad", "him", "classic"],
+  brother: ["brother", "him", "tech", "practical"],
+  sister: ["sister", "her", "creative", "cozy"],
+  wife: ["her", "romantic", "anniversary", "elegant"],
+  husband: ["him", "romantic", "practical"],
+  girlfriend: ["her", "romantic", "anniversary"],
+  boyfriend: ["him", "romantic", "gadget"],
+  friend: ["friend", "fun", "hosting"],
+  partner: ["romantic", "anniversary"],
+  mentor: ["mentor", "thoughtful", "classic"],
+  colleague: ["practical", "hosting"],
+};
+
+const OCCASION_TAGS: Record<string, string[]> = {
+  birthday: ["fun", "treat"],
+  anniversary: ["romantic", "anniversary", "elegant", "personalized"],
+  wedding: ["wedding", "elegant", "home"],
+  housewarming: ["home", "housewarming", "plants"],
+  holiday: ["cozy", "treat"],
+  christmas: ["cozy", "treat"],
+  graduation: ["personalized", "practical"],
+  "thank you": ["thoughtful", "treat"],
+};
+
+const INTEREST_WORDS = [
+  "coffee", "tech", "gaming", "plants", "cooking", "cocktails", "running",
+  "fitness", "reading", "writing", "photography", "music", "cozy", "sleep",
+  "chocolate", "wellness", "spa", "outdoors", "creative", "fashion",
+];
+
+function num(text: string, re: RegExp): number | undefined {
+  const m = text.match(re);
+  return m ? parseInt(m[1], 10) : undefined;
+}
+
+export function heuristicBrief(text: string, prev: GiftBrief): GiftBrief {
+  const t = text.toLowerCase();
+  const brief: GiftBrief = { ...prev };
+
+  // budget: "$60", "under 60", "around 50", "50 dollars", "50 bucks"
+  const budget =
+    num(t, /\$\s*(\d{1,4})/) ??
+    num(t, /(?:under|below|max|upto|up to|around|about|~)\s*\$?\s*(\d{1,4})/) ??
+    num(t, /(\d{1,4})\s*(?:dollars|bucks|usd)/);
+  if (budget) brief.budget = budget;
+
+  // relationship / recipient
+  for (const key of Object.keys(RELATIONSHIP_TAGS)) {
+    if (new RegExp(`\\b${key}\\b`).test(t)) {
+      brief.relationship = key;
+      brief.recipient = brief.recipient || key;
+      break;
+    }
+  }
+
+  // occasion
+  for (const key of Object.keys(OCCASION_TAGS)) {
+    if (t.includes(key)) {
+      brief.occasion = key;
+      break;
+    }
+  }
+
+  // deadline: "by Friday", "in 3 days", "next week", "tomorrow"
+  const inDays = num(t, /in\s*(\d{1,2})\s*days?/);
+  if (inDays) brief.deadlineDays = inDays;
+  else if (t.includes("tomorrow")) brief.deadlineDays = 1;
+  else if (t.includes("this week") || /\bby\s+(fri|friday|thu|thursday)\b/.test(t)) brief.deadlineDays = 4;
+  else if (t.includes("next week")) brief.deadlineDays = 7;
+
+  // interests
+  const interests = new Set(brief.interests || []);
+  for (const w of INTEREST_WORDS) if (t.includes(w)) interests.add(w);
+  if (interests.size) brief.interests = [...interests];
+
+  brief.notes = prev.notes ? `${prev.notes} ${text}` : text;
+  return brief;
+}
+
+export function scoreProducts(brief: GiftBrief): GiftProduct[] {
+  const wanted = new Set<string>();
+  if (brief.relationship) (RELATIONSHIP_TAGS[brief.relationship] || []).forEach((x) => wanted.add(x));
+  if (brief.occasion) (OCCASION_TAGS[brief.occasion] || []).forEach((x) => wanted.add(x));
+  (brief.interests || []).forEach((x) => wanted.add(x));
+
+  const scored = CATALOG.map((p) => {
+    let score = 0;
+    for (const tag of p.tags) if (wanted.has(tag)) score += 3;
+    // budget fit: reward using ~55-95% of budget, penalize over-budget hard
+    if (brief.budget != null) {
+      if (p.price > brief.budget) score -= 100;
+      else {
+        const ratio = p.price / brief.budget;
+        if (ratio >= 0.55 && ratio <= 0.98) score += 4;
+        else if (ratio >= 0.35) score += 2;
+      }
+    }
+    // deadline feasibility
+    if (brief.deadlineDays != null && p.deliveryDays > brief.deadlineDays) score -= 6;
+    score += p.rating; // small quality nudge
+    return { p, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.filter((s) => s.score > -50).map((s) => s.p);
+}
+
+function feasibilityNote(brief: GiftBrief, top: GiftProduct[]): string {
+  const bits: string[] = [];
+  if (brief.recipient) bits.push(`for your ${brief.recipient}`);
+  if (brief.occasion) bits.push(`(${brief.occasion})`);
+  if (brief.budget) bits.push(`under $${brief.budget}`);
+  const lead = bits.length ? `Here are my top picks ${bits.join(" ")}:` : "Here are a few ideas I love:";
+  const rec = top[0];
+  return `${lead} I'd go with the ${rec.title.toLowerCase()} — ${rec.description.split(".")[0].toLowerCase()}.`;
+}
+
+export async function curate(
+  userText: string,
+  prevBrief: GiftBrief
+): Promise<OptionCard> {
+  // Always compute a heuristic brief + ranking as the safety net.
+  const brief = heuristicBrief(userText, prevBrief);
+  const ranked = scoreProducts(brief);
+  const top = ranked.slice(0, 3);
+
+  if (openaiMode === "mock" || top.length === 0) {
+    const picks = top.length ? top : CATALOG.slice(0, 3);
+    return {
+      products: picks,
+      recommendedId: picks[0].id,
+      reasoning: feasibilityNote(brief, picks),
+      brief,
+    };
+  }
+
+  // Live: let OpenAI refine the brief + choose from the shortlisted catalog.
+  try {
+    const catalogForModel = ranked.slice(0, 8).map((p) => ({
+      id: p.id,
+      title: p.title,
+      price: p.price,
+      category: p.category,
+      tags: p.tags,
+      deliveryDays: p.deliveryDays,
+      blurb: p.description,
+    }));
+
+    const system = `You are Posy, a warm, tasteful gifting concierge that texts like a thoughtful friend.
+You help people pick and send the perfect gift. Be concise (2-3 sentences), never pushy, never salesy.
+You MUST only pick products from the provided candidates. Respect the stated budget as a hard cap.
+Return STRICT JSON with keys:
+{
+  "brief": {"recipient","relationship","occasion","budget"(number),"interests"(string[]),"deadlineDays"(number),"notes"},
+  "recommendedId": string (one of candidate ids),
+  "rankedIds": string[] (2-3 candidate ids, best first),
+  "message": string (your warm text-message reply recommending the top pick, referencing why it fits)
+}`;
+
+    const user = `Their message: "${userText}"
+Known so far: ${JSON.stringify(prevBrief)}
+Candidate gifts (only choose from these): ${JSON.stringify(catalogForModel)}`;
+
+    const out = await chatJSON(system, user);
+    const rankedIds: string[] = (out.rankedIds || [out.recommendedId]).filter(
+      Boolean
+    );
+    const chosen = rankedIds
+      .map((id: string) => CATALOG.find((p) => p.id === id))
+      .filter(Boolean) as GiftProduct[];
+    const products = (chosen.length ? chosen : top).slice(0, 3);
+    const recommendedId =
+      out.recommendedId && products.find((p) => p.id === out.recommendedId)
+        ? out.recommendedId
+        : products[0].id;
+
+    return {
+      products,
+      recommendedId,
+      reasoning: out.message || feasibilityNote(brief, products),
+      brief: { ...brief, ...(out.brief || {}) },
+    };
+  } catch (e) {
+    // Any OpenAI hiccup: fall back gracefully to the heuristic result.
+    const picks = top.length ? top : CATALOG.slice(0, 3);
+    return {
+      products: picks,
+      recommendedId: picks[0].id,
+      reasoning: feasibilityNote(brief, picks),
+      brief,
+    };
+  }
+}
+
+export function etaFor(days: number): string {
+  const d = new Date(Date.now() + days * 24 * 3600_000);
+  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
