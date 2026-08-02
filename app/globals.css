@@ -10,39 +10,73 @@ html,
 body {
   padding: 0;
   margin: 0;
-  background: #fafafa;
-  color: #0b0b0f;
+  background: #f4eee1;
+  color: #1c1712;
+  font-family: var(--font-sans), -apple-system, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
 }
 
-.gradient-text {
-  background: linear-gradient(90deg, #db2777, #f472b6 60%, #fb923c);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+::selection {
+  background: #e0bcae;
+  color: #1c1712;
 }
 
-.glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Display type: Fraunces, set with real optical care */
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
 }
 
-/* iMessage phone frame */
-.phone {
-  background: #f2f2f7;
-  border-radius: 44px;
-  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.35),
-    0 0 0 12px #111827, 0 0 0 14px #1f2937;
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+
+/* Mono for money, receipts, refs, ledger labels — precision as texture */
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-feature-settings: "tnum" 1;
+}
+
+/* A quiet paper rule used to separate sections */
+.rule {
+  border-top: 1px solid #e2d9c6;
+}
+
+/* Subtle paper card */
+.paper-card {
+  background: #fcfaf4;
+  border: 1px solid #e2d9c6;
+  border-radius: 12px;
+}
+
+/* Header that sits on paper without heavy blur */
+.topbar {
+  background: rgba(244, 238, 225, 0.85);
+  backdrop-filter: saturate(1.1) blur(6px);
+  -webkit-backdrop-filter: saturate(1.1) blur(6px);
 }
 
 .imsg-scroll::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+/* Hand-drawn underline accent for a human touch */
+.ink-underline {
+  background-image: linear-gradient(transparent 60%, #e0bcae 60%);
+  background-repeat: no-repeat;
+  background-size: 100% 90%;
 }
 
 .tick {
@@ -53,11 +87,11 @@ body {
   50% { opacity: 1; }
 }
 
-/* Accessible focus rings for keyboard users */
+/* Accessible focus rings */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
-  outline: 2px solid #db2777;
+  outline: 2px solid #8e2c3f;
   outline-offset: 2px;
 }
 

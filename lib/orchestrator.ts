@@ -143,7 +143,7 @@ export async function runTurn(
         });
         db().mandates.unshift(mandate);
         log({ kind: "mandate_created", title: `Recurring mandate set — ${label}`, detail: `Scope: ${mandate.merchant} · cap $${mandate.cap}/charge · ${mandate.max_charges} charges max · pausable anytime`, amount: mandate.cap, meta: { mandate_id: mandate.id } });
-        messages.push(msg({ role: "assistant", text: `Done — I'll take care of it ${mandate.recurring_frequency === "yearly" ? "every year" : "every month"}. You stay in control: capped at $${mandate.cap} per charge and you can pause or cancel anytime.` }));
+        messages.push(msg({ role: "assistant", text: `Done. I'll handle it ${mandate.recurring_frequency === "yearly" ? "every year" : "every month"} — capped at $${mandate.cap}, and you can call it off anytime.` }));
         messages.push(msg({ role: "assistant", rich: { kind: "mandate", data: mandate } }));
         return { messages, state: next };
       }
@@ -166,7 +166,7 @@ export async function runTurn(
         messages.push(receiptMsg);
         next.awaitingApprovalFor = undefined;
         if (receiptMsg.rich?.kind === "receipt") {
-          messages.push(msg({ role: "assistant", text: `Sent! 🎁 Want me to remember this occasion and handle it automatically next time?` }));
+          messages.push(msg({ role: "assistant", text: `Sent. Want me to remember this one, so you never have to think about it again?` }));
         }
         return { messages, state: next };
       }

@@ -8,25 +8,49 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0b0b0f",
-        posy: {
-          50: "#fdf2f8",
-          100: "#fce7f3",
-          200: "#fbcfe8",
-          300: "#f9a8d4",
-          400: "#f472b6",
-          500: "#ec4899",
-          600: "#db2777",
-          700: "#be185d",
+        // Warm boutique palette — cream paper, ink, one confident claret,
+        // a soft stem-green reserved for "sent/cleared".
+        paper: "#F4EEE1",
+        card: "#FCFAF4",
+        ink: "#1C1712",
+        muted: "#726A5C",
+        line: "#E2D9C6",
+        claret: {
+          DEFAULT: "#8E2C3F",
+          700: "#752333",
         },
+        // posy scale kept as aliases so existing usage recolors cleanly
+        posy: {
+          50: "#F3E4DA",
+          100: "#EAD3C6",
+          200: "#E0BCAE",
+          300: "#CE8C86",
+          400: "#B5545A",
+          500: "#9E2E42",
+          600: "#8E2C3F",
+          700: "#752333",
+        },
+        stem: {
+          DEFAULT: "#3C6E56",
+          bg: "#E7EFE7",
+        },
+        // authentic iMessage — intentional, not generic
         imsg: {
           blue: "#0a84ff",
           gray: "#e9e9eb",
-          graytext: "#000000",
         },
       },
       fontFamily: {
-        sans: ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"],
+        display: ["var(--font-display)", "Georgia", "serif"],
+        sans: ["var(--font-sans)", "-apple-system", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+      },
+      borderRadius: {
+        card: "12px",
+      },
+      boxShadow: {
+        soft: "0 1px 2px rgba(28,23,18,0.04), 0 8px 24px -16px rgba(28,23,18,0.18)",
+        phone: "0 30px 60px -24px rgba(28,23,18,0.4)",
       },
       keyframes: {
         "bubble-in": {

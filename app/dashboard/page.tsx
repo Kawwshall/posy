@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Mark } from "@/components/Mark";
 import { Guardrails, LedgerEntry, PravaMandate, Receipt } from "@/lib/types";
 
 interface StateResp {
@@ -12,13 +13,6 @@ interface StateResp {
   monthSpent: number;
   modes: { prava: string; openai: string; model: string };
 }
-
-const KIND_ICON: Record<string, string> = {
-  brief_parsed: "📝", search: "🔎", curation: "✨", guardrail_check: "🛡️",
-  approval_requested: "⏳", approved: "👍", session_created: "🔗", card_issued: "💳",
-  charged: "💸", receipt: "🎁", mandate_created: "🔁", mandate_charged: "🔁",
-  declined: "🚫", error: "⚠️",
-};
 
 export default function Dashboard() {
   const [d, setD] = useState<StateResp>();
@@ -56,29 +50,26 @@ export default function Dashboard() {
     load();
   }
 
-  if (!d) return <div className="p-10 text-black/40">Loading…</div>;
+  if (!d) return <div className="p-10 text-muted">Loading…</div>;
 
   const pct = Math.min(100, (d.monthSpent / (d.guardrails.monthlyCap || 1)) * 100);
 
   return (
-    <main className="min-h-screen bg-[#fafafa]">
-      <div className="glass sticky top-0 z-40 border-b border-black/5">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-posy-600 text-white">🌸</span>
-            Posy · Trust dashboard
+    <main className="min-h-screen bg-paper">
+      <div className="topbar sticky top-0 z-40 border-b border-line">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-3">
+          <Link href="/" className="flex items-center gap-2">
+            <Mark className="h-6 w-6" />
+            <span className="font-display text-xl">Posy</span>
+            <span className="mono text-[11px] uppercase tracking-widest text-muted">/ the ledger</span>
           </Link>
-          <div className="flex items-center gap-2 text-xs">
-            <span className={"rounded-full px-2.5 py-1 font-medium " + (d.modes.prava === "live" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-              Prava: {d.modes.prava}
-            </span>
-            <span className={"rounded-full px-2.5 py-1 font-medium " + (d.modes.openai === "live" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-              OpenAI: {d.modes.openai}
-            </span>
-            <button onClick={reset} className="rounded-lg border border-black/10 bg-white px-3 py-1.5 font-medium hover:bg-black/5">
-              Reset demo
+          <div className="flex items-center gap-2">
+            <ModeChip label="prava" mode={d.modes.prava} />
+            <ModeChip label="openai" mode={d.modes.openai} />
+            <button onClick={reset} className="rounded-lg border border-line bg-card px-3 py-1.5 text-sm font-medium text-ink hover:bg-paper">
+              Reset
             </button>
-            <Link href="/demo" className="rounded-lg bg-ink px-3 py-1.5 font-medium text-white hover:bg-black">
+            <Link href="/demo" className="rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-paper hover:bg-black">
               Text Posy →
             </Link>
           </div>
@@ -86,62 +77,69 @@ export default function Dashboard() {
       </div>
 
       <div className="mx-auto max-w-6xl px-5 py-8">
+        <header className="mb-8">
+          <h1 className="font-display text-3xl">How the money works</h1>
+          <p className="mt-1 max-w-xl text-muted">
+            Every rule Posy follows and every dollar it&apos;s moved — in plain sight.
+          </p>
+        </header>
+
         {/* top stats */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
-            <div className="text-xs uppercase tracking-wide text-black/40">Spent this month</div>
-            <div className="mt-1 text-3xl font-semibold">${d.monthSpent}</div>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/5">
-              <div className="h-full rounded-full bg-posy-500 transition-all" style={{ width: `${pct}%` }} />
+            <Label>spent this month</Label>
+            <div className="mono mt-1 text-3xl font-medium text-ink">${d.monthSpent}</div>
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-line">
+              <div className="h-full rounded-full bg-claret transition-all" style={{ width: `${pct}%` }} />
             </div>
-            <div className="mt-1 text-xs text-black/40">of ${d.guardrails.monthlyCap} monthly cap</div>
+            <div className="mono mt-1.5 text-[11px] text-muted">of ${d.guardrails.monthlyCap} you allowed</div>
           </Card>
           <Card>
-            <div className="text-xs uppercase tracking-wide text-black/40">Gifts sent</div>
-            <div className="mt-1 text-3xl font-semibold">{d.receipts.length}</div>
-            <div className="mt-2 text-xs text-black/40">Each paid with a one-time Visa network token</div>
+            <Label>gifts sent</Label>
+            <div className="mono mt-1 text-3xl font-medium text-ink">{d.receipts.length}</div>
+            <div className="mt-2 text-xs text-muted">each on its own single-use card</div>
           </Card>
           <Card>
-            <div className="text-xs uppercase tracking-wide text-black/40">Active mandates</div>
-            <div className="mt-1 text-3xl font-semibold">{d.mandates.filter((m) => m.status === "active").length}</div>
-            <div className="mt-2 text-xs text-black/40">Recurring occasions on autopilot</div>
+            <Label>on autopilot</Label>
+            <div className="mono mt-1 text-3xl font-medium text-ink">{d.mandates.filter((m) => m.status === "active").length}</div>
+            <div className="mt-2 text-xs text-muted">occasions it remembers for you</div>
           </Card>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-          {/* left column: guardrails + mandates + receipts */}
+          {/* left column */}
           <div className="space-y-6">
             <Card>
-              <h2 className="mb-1 text-lg font-semibold">Spend guardrails</h2>
-              <p className="mb-4 text-sm text-black/50">
-                Hard limits the agent must obey before any card is issued. Change
-                these and the agent&apos;s behavior changes instantly.
+              <h2 className="font-display text-xl">Your ceiling</h2>
+              <p className="mb-4 mt-1 text-sm text-muted">
+                Posy can&apos;t cross these. Drag a line and it changes its mind
+                on the very next gift.
               </p>
               <div className="space-y-4">
-                <Slider label="Per-gift cap" value={d.guardrails.perGiftCap} min={20} max={300} step={5} onChange={(v) => saveGuardrail({ perGiftCap: v })} />
-                <Slider label="Monthly cap" value={d.guardrails.monthlyCap} min={100} max={2000} step={50} onChange={(v) => saveGuardrail({ monthlyCap: v })} />
-                <Slider label="Auto-approve under" value={d.guardrails.requireApprovalOver} min={0} max={200} step={5} onChange={(v) => saveGuardrail({ requireApprovalOver: v })} />
+                <Slider label="most per gift" value={d.guardrails.perGiftCap} min={20} max={300} step={5} onChange={(v) => saveGuardrail({ perGiftCap: v })} />
+                <Slider label="most per month" value={d.guardrails.monthlyCap} min={100} max={2000} step={50} onChange={(v) => saveGuardrail({ monthlyCap: v })} />
+                <Slider label="ask me above" value={d.guardrails.requireApprovalOver} min={0} max={200} step={5} onChange={(v) => saveGuardrail({ requireApprovalOver: v })} />
               </div>
-              <p className="mt-3 text-xs text-black/40">
-                Amounts above the auto-approve threshold require an explicit
-                passkey-style approval in the text thread.
+              <p className="mt-3 text-xs text-muted">
+                Anything over that last line, Posy stops and asks you first — right
+                in the thread.
               </p>
             </Card>
 
             <Card>
-              <h2 className="mb-1 text-lg font-semibold">Recurring mandates</h2>
-              <p className="mb-4 text-sm text-black/50">
-                Standing authorizations (e.g. “Mom&apos;s birthday, every year”).
-                Merchant-scoped and capped — pause or cancel anytime.
+              <h2 className="font-display text-xl">Standing gifts</h2>
+              <p className="mb-4 mt-1 text-sm text-muted">
+                Occasions Posy remembers so you don&apos;t. Capped per charge, and
+                off in one tap.
               </p>
-              {d.mandates.length === 0 && <Empty>No mandates yet. Ask Posy to “remember” an occasion.</Empty>}
+              {d.mandates.length === 0 && <Empty>Nothing yet. Ask Posy to “remember” a birthday.</Empty>}
               <div className="space-y-3">
                 {d.mandates.map((m) => (
-                  <div key={m.id} className="rounded-xl border border-black/5 p-3">
+                  <div key={m.id} className="rounded-lg border border-line p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="text-sm font-semibold">{m.label}</div>
-                        <div className="mt-0.5 text-xs text-black/50">
+                        <div className="text-sm font-semibold text-ink">{m.label}</div>
+                        <div className="mono mt-0.5 text-[11px] text-muted">
                           {m.merchant} · ${m.cap}/charge · {m.recurring_frequency} · {m.charges_used}/{m.max_charges} used
                         </div>
                       </div>
@@ -165,46 +163,42 @@ export default function Dashboard() {
             </Card>
 
             <Card>
-              <h2 className="mb-1 text-lg font-semibold">Receipts</h2>
-              {d.receipts.length === 0 && <Empty>No purchases yet.</Empty>}
-              <div className="space-y-2">
+              <h2 className="font-display text-xl">What it&apos;s bought</h2>
+              <div className="mt-3 space-y-2">
+                {d.receipts.length === 0 && <Empty>Nothing bought yet.</Empty>}
                 {d.receipts.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3 rounded-xl border border-black/5 p-2.5">
+                  <div key={r.id} className="flex items-center gap-3 rounded-lg border border-line p-2.5">
                     <div className="grid h-10 w-10 place-items-center rounded-lg bg-black/[0.03] text-xl">{r.product.emoji}</div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{r.product.title}</div>
-                      <div className="text-xs text-black/50">{r.merchant} · {r.orderRef} · Visa •••• {r.card.last4}</div>
+                      <div className="truncate text-sm font-medium text-ink">{r.product.title}</div>
+                      <div className="mono text-[11px] text-muted">{r.merchant} · {r.orderRef} · Visa ···· {r.card.last4}</div>
                     </div>
-                    <div className="text-sm font-semibold">${r.amount}</div>
+                    <div className="mono text-sm font-medium text-ink">${r.amount}</div>
                   </div>
                 ))}
               </div>
             </Card>
           </div>
 
-          {/* right column: audit ledger */}
+          {/* right column: ledger */}
           <Card>
-            <div className="mb-1 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Audit ledger</h2>
-              <span className="text-xs text-black/40">{d.ledger.length} events</span>
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-display text-xl">Everything, on the record</h2>
+              <span className="mono text-[11px] text-muted">{d.ledger.length} events</span>
             </div>
-            <p className="mb-4 text-sm text-black/50">
-              An append-only record of every action the agent took. This is what
-              makes autonomous spending trustworthy — nothing happens off the books.
+            <p className="mb-4 mt-1 text-sm text-muted">
+              Every move Posy made, newest first. Nothing happens off this list.
             </p>
-            <div className="max-h-[720px] space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-[720px] overflow-y-auto">
               {d.ledger.map((e) => (
-                <div key={e.id} className="flex gap-3 rounded-xl border border-black/5 bg-black/[0.012] p-3">
-                  <div className="text-lg leading-none">{KIND_ICON[e.kind] || "•"}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium">{e.title}</span>
-                      {e.amount != null && <span className="shrink-0 text-xs font-semibold text-posy-700">${e.amount}</span>}
-                    </div>
-                    {e.detail && <p className="mt-0.5 text-xs leading-snug text-black/55">{e.detail}</p>}
-                    <div className="mt-1 text-[10px] uppercase tracking-wide text-black/30">
-                      {e.kind.replace(/_/g, " ")} · {new Date(e.ts).toLocaleTimeString()}
-                    </div>
+                <div key={e.id} className="border-l-2 border-claret/25 py-2.5 pl-4">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-sm font-medium text-ink">{e.title}</span>
+                    {e.amount != null && <span className="mono shrink-0 text-xs text-claret">${e.amount.toFixed(2)}</span>}
+                  </div>
+                  {e.detail && <p className="mt-0.5 text-xs leading-snug text-muted">{e.detail}</p>}
+                  <div className="mono mt-1 text-[10px] uppercase tracking-[0.1em] text-muted/60">
+                    {e.kind.replace(/_/g, " ")} · {new Date(e.ts).toLocaleTimeString()}
                   </div>
                 </div>
               ))}
@@ -217,34 +211,46 @@ export default function Dashboard() {
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm">{children}</div>;
+  return <div className="paper-card p-6 shadow-soft">{children}</div>;
+}
+function Label({ children }: { children: React.ReactNode }) {
+  return <div className="mono text-[11px] uppercase tracking-[0.14em] text-muted">{children}</div>;
 }
 function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-xl border border-dashed border-black/10 p-5 text-center text-sm text-black/40">{children}</div>;
+  return <div className="rounded-lg border border-dashed border-line p-5 text-center text-sm text-muted">{children}</div>;
 }
 function MiniBtn({ children, onClick, danger }: { children: React.ReactNode; onClick: () => void; danger?: boolean }) {
   return (
-    <button onClick={onClick} className={"rounded-lg px-3 py-1.5 text-xs font-medium " + (danger ? "text-red-600 hover:bg-red-50" : "text-black/70 hover:bg-black/5") + " border border-black/10"}>
+    <button onClick={onClick} className={"rounded-lg border border-line px-3 py-1.5 text-xs font-medium " + (danger ? "text-red-700 hover:bg-red-50" : "text-ink hover:bg-paper")}>
       {children}
     </button>
   );
 }
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
-    active: "bg-emerald-100 text-emerald-700",
-    paused: "bg-amber-100 text-amber-700",
-    cancelled: "bg-black/10 text-black/50",
+    active: "text-stem",
+    paused: "text-claret",
+    cancelled: "text-muted",
   };
-  return <span className={"rounded-full px-2.5 py-1 text-xs font-medium " + (map[status] || "")}>{status}</span>;
+  return <span className={"mono text-[11px] uppercase tracking-wide " + (map[status] || "")}>{status}</span>;
+}
+function ModeChip({ label, mode }: { label: string; mode: string }) {
+  const live = mode === "live";
+  return (
+    <span className="mono flex items-center gap-1.5 rounded-md border border-line bg-card px-2 py-1 text-[10px] uppercase tracking-wide text-muted">
+      <span className={"h-1.5 w-1.5 rounded-full " + (live ? "bg-stem" : "bg-claret/50")} />
+      {label} {mode}
+    </span>
+  );
 }
 function Slider({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="text-black/60">{label}</span>
-        <span className="font-semibold">${value}</span>
+      <div className="mb-1 flex items-baseline justify-between text-sm">
+        <span className="text-muted">{label}</span>
+        <span className="mono font-medium text-ink">${value}</span>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseInt(e.target.value, 10))} className="w-full accent-posy-600" />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseInt(e.target.value, 10))} className="w-full accent-claret" />
     </div>
   );
 }

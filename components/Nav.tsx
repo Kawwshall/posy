@@ -1,27 +1,26 @@
 import Link from "next/link";
+import { Mark } from "./Mark";
 
 export function Nav() {
   return (
-    <header className="sticky top-0 z-40 glass border-b border-black/5">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <span className="grid h-8 w-8 place-items-center rounded-xl bg-posy-600 text-white shadow-sm">
-            🌸
-          </span>
-          <span className="text-lg tracking-tight">Posy</span>
+    <header className="topbar sticky top-0 z-40 border-b border-line">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3.5">
+        <Link href="/" className="flex items-center gap-2">
+          <Mark className="h-6 w-6" />
+          <span className="font-display text-xl tracking-tight">Posy</span>
         </Link>
-        <nav className="flex items-center gap-1 text-sm font-medium">
-          <Link href="/demo" className="rounded-lg px-3 py-2 text-black/70 hover:bg-black/5">
-            Try the demo
+        <nav className="flex items-center gap-1 text-[15px]">
+          <Link href="/demo" className="rounded-lg px-3 py-2 text-muted transition hover:text-ink">
+            Try it
           </Link>
-          <Link href="/dashboard" className="rounded-lg px-3 py-2 text-black/70 hover:bg-black/5">
-            Trust dashboard
+          <Link href="/dashboard" className="hidden rounded-lg px-3 py-2 text-muted transition hover:text-ink sm:block">
+            How the money works
           </Link>
           <Link
             href="/demo"
-            className="rounded-lg bg-ink px-3.5 py-2 text-white hover:bg-black"
+            className="ml-1 rounded-lg bg-ink px-4 py-2 text-[15px] font-medium text-paper transition hover:bg-black"
           >
-            Text Posy →
+            Text Posy
           </Link>
         </nav>
       </div>

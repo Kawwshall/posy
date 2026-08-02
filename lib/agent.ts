@@ -94,26 +94,32 @@ export function heuristicBrief(text: string, prev: GiftBrief): GiftBrief {
 }
 
 export function scoreProducts(brief: GiftBrief): GiftProduct[] {
-  const wanted = new Set<string>();
-  if (brief.relationship) (RELATIONSHIP_TAGS[brief.relationship] || []).forEach((x) => wanted.add(x));
-  if (brief.occasion) (OCCASION_TAGS[brief.occasion] || []).forEach((x) => wanted.add(x));
-  (brief.interests || []).forEach((x) => wanted.add(x));
+  // What someone explicitly says they're into should dominate — it's the
+  // clearest signal of taste. Relationship/occasion are softer context.
+  const interestTags = new Set((brief.interests || []).map((x) => x.toLowerCase()));
+  const contextTags = new Set<string>();
+  if (brief.relationship) (RELATIONSHIP_TAGS[brief.relationship] || []).forEach((x) => contextTags.add(x));
+  if (brief.occasion) (OCCASION_TAGS[brief.occasion] || []).forEach((x) => contextTags.add(x));
 
   const scored = CATALOG.map((p) => {
     let score = 0;
-    for (const tag of p.tags) if (wanted.has(tag)) score += 3;
-    // budget fit: reward using ~55-95% of budget, penalize over-budget hard
+    for (const tag of p.tags) {
+      if (interestTags.has(tag)) score += 6; // stated interest: heavy
+      if (contextTags.has(tag)) score += 2; // inferred context: light
+    }
+    // budget fit: reward spending a healthy fraction, hard-penalize over-budget
     if (brief.budget != null) {
       if (p.price > brief.budget) score -= 100;
       else {
         const ratio = p.price / brief.budget;
-        if (ratio >= 0.55 && ratio <= 0.98) score += 4;
-        else if (ratio >= 0.35) score += 2;
+        if (ratio >= 0.6 && ratio <= 0.98) score += 4;
+        else if (ratio >= 0.4) score += 2.5;
+        else score += 1;
       }
     }
     // deadline feasibility
     if (brief.deadlineDays != null && p.deliveryDays > brief.deadlineDays) score -= 6;
-    score += p.rating; // small quality nudge
+    score += p.rating * 0.5; // gentle quality nudge, not a tie-breaker that overrides fit
     return { p, score };
   });
 
@@ -122,13 +128,12 @@ export function scoreProducts(brief: GiftBrief): GiftProduct[] {
 }
 
 function feasibilityNote(brief: GiftBrief, top: GiftProduct[]): string {
-  const bits: string[] = [];
-  if (brief.recipient) bits.push(`for your ${brief.recipient}`);
-  if (brief.occasion) bits.push(`(${brief.occasion})`);
-  if (brief.budget) bits.push(`under $${brief.budget}`);
-  const lead = bits.length ? `Here are my top picks ${bits.join(" ")}:` : "Here are a few ideas I love:";
   const rec = top[0];
-  return `${lead} I'd go with the ${rec.title.toLowerCase()} — ${rec.description.split(".")[0].toLowerCase()}.`;
+  const who = brief.recipient ? `your ${brief.recipient}` : "them";
+  const occ = brief.occasion ? `${brief.occasion} ` : "";
+  const cap = brief.budget ? `, keeping it under $${brief.budget}` : "";
+  const why = rec.description.split(".")[0].toLowerCase();
+  return `For ${who}'s ${occ}${occ ? "" : "gift"}${cap} — I'd send the ${rec.title.toLowerCase()}. ${why.charAt(0).toUpperCase()}${why.slice(1)}. A couple of other ideas below if you want options.`;
 }
 
 export async function curate(
