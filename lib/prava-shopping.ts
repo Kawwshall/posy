@@ -103,7 +103,7 @@ export async function searchLiveProducts(query: string): Promise<GiftProduct[]> 
   if (!AGENT_ID || !PRIVATE_KEY) return [];
   try {
     const data = await post("/v1/wallet/shop/search", {
-      query: `${query} gift India`,
+      query,
       shipsTo: "IN",
       limit: 8,
     });

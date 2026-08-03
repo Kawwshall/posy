@@ -41,7 +41,7 @@ const OCCASION_TAGS: Record<string, string[]> = {
 };
 
 const INTEREST_WORDS = [
-  "coffee", "tech", "gaming", "plants", "cooking", "cocktails", "running",
+  "coffee", "chai", "tea", "tech", "gaming", "plants", "cooking", "cocktails", "running",
   "fitness", "reading", "writing", "photography", "music", "cozy", "sleep",
   "chocolate", "wellness", "spa", "outdoors", "creative", "fashion",
 ];
@@ -149,7 +149,13 @@ export async function curate(
   // Always compute a heuristic brief + ranking as the safety net.
   const brief = heuristicBrief(userText, prevBrief);
   const ranked = scoreProducts(brief);
-  const live = await searchLiveProducts(userText);
+  const liveQuery = [
+    "India",
+    ...(brief.interests || []),
+    brief.occasion || "thoughtful",
+    "gift box INR",
+  ].join(" ");
+  const live = await searchLiveProducts(liveQuery);
   const withinBudget = live.filter((product) => brief.budget == null || product.price <= brief.budget);
   const candidatePool = withinBudget.length ? withinBudget : live.length ? live : ranked;
   const top = candidatePool.slice(0, 3);
