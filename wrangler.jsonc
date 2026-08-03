@@ -4,6 +4,13 @@
   "compatibility_date": "2026-08-03",
   "compatibility_flags": [],
   "main": "./worker/index.ts",
+  "vars": {
+    "OPENAI_MODEL": "gpt-5.6-sol",
+    "PRAVA_BASE_URL": "https://sandbox.api.prava.space",
+    "LINQ_BASE_URL": "https://api.linqapp.com/api/partner/v3",
+    "LINQ_NUMBER": "+16462395308",
+    "NEXT_PUBLIC_APP_URL": "https://posy.getcontios.com"
+  },
   "routes": [
     { "pattern": "posy.getcontios.com/*", "zone_name": "getcontios.com" }
   ],
