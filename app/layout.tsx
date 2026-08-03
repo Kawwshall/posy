@@ -27,6 +27,13 @@ export const metadata: Metadata = {
   title: "Posy · gifting, minus the twenty open tabs",
   description:
     "Tell Posy who, why, and what you can spend. It recommends thoughtfully, checks your limits, and asks before money moves.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "Posy · the friend who is weirdly good at gifts",
     description: "Human gifting advice, explicit approval, and single-use payments via Prava.",
@@ -48,6 +55,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+      <head>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="alternate icon" type="image/png" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
+      </head>
       <body>{children}</body>
     </html>
   );
