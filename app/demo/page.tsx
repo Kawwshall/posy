@@ -37,7 +37,7 @@ export default function DemoPage() {
   const [typing, setTyping] = useState(false);
   const [trace, setTrace] = useState<LedgerEntry[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [modes, setModes] = useState<{ prava: string; pravaEnvironment?: string; openai: string; model: string }>();
+  const [modes, setModes] = useState<{ prava: string; pravaEnvironment?: string; shopping?: string; openai: string; model: string }>();
   const [spend, setSpend] = useState<{ monthSpent: number; monthlyCap: number }>();
   const [celebrate, setCelebrate] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -126,6 +126,7 @@ export default function DemoPage() {
           </Link>
           <div className="flex items-center gap-2">
             <ModeBadge label="prava" mode={modes?.prava} extra={modes?.pravaEnvironment} />
+            <ModeBadge label="catalog" mode={modes?.shopping} />
             <ModeBadge label="openai" mode={modes?.openai} extra={modes?.model} />
           </div>
         </div>
@@ -498,13 +499,21 @@ function PaymentApprovalCard({ data, onAction, disabled }: { data: PaymentApprov
 function ProductRow({ p, recommended }: { p: GiftProduct; recommended?: boolean }) {
   return (
     <div className={"flex gap-3 rounded-lg border p-2.5 " + (recommended ? "border-claret/30 bg-posy-50" : "border-line bg-card")}>
-      <Swatch title={p.title} category={p.category} />
+      {p.imageUrl ? (
+        <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg border border-line object-cover" />
+      ) : (
+        <Swatch title={p.title} category={p.category} />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="truncate text-[13px] font-semibold text-ink">{p.title}</span>
           {recommended && <span className="mono shrink-0 rounded bg-claret px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white">pick</span>}
         </div>
-        <div className="text-[11px] text-muted">{p.source === "demo" ? "demo inventory" : p.merchant} · ★{p.rating} · {p.deliveryDays}-day</div>
+        <div className="text-[11px] text-muted">
+          {p.source === "demo" ? "demo idea" : `live · ${p.merchant}`}
+          {p.rating > 0 ? ` · ★${p.rating}` : ""}
+          {p.source === "merchant" ? " · shipping at checkout" : ` · ${p.deliveryDays}-day`}
+        </div>
       </div>
       <div className="mono shrink-0 self-center text-[13px] font-medium text-ink">{money(p.price)}</div>
     </div>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/store";
 import { pravaEnvironment, pravaMode } from "@/lib/prava";
 import { openaiMode, OPENAI_MODEL } from "@/lib/openai";
+import { pravaShoppingMode } from "@/lib/prava-shopping";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,6 @@ export async function GET() {
     mandates: d.mandates,
     receipts: d.receipts,
     monthSpent: d.monthSpent,
-    modes: { prava: pravaMode, pravaEnvironment, openai: openaiMode, model: OPENAI_MODEL },
+    modes: { prava: pravaMode, pravaEnvironment, shopping: pravaShoppingMode, openai: openaiMode, model: OPENAI_MODEL },
   });
 }

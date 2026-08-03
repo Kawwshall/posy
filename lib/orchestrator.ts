@@ -1,4 +1,4 @@
-import { curate, etaFor, scoreProducts } from "./agent";
+import { curate, etaFor } from "./agent";
 import { findProduct } from "./catalog";
 import { checkGuardrails } from "./guardrails";
 import {
@@ -48,9 +48,13 @@ function resolveSelection(text: string, opts: OptionCard): string | undefined {
 }
 
 function firstAllowedProduct(options: OptionCard): GiftProduct | undefined {
-  return scoreProducts(options.brief).find(
+  return options.products.find(
     (product) => checkGuardrails(product, options.brief.budget).allowed
   );
+}
+
+function optionProduct(options: OptionCard | undefined, id: string): GiftProduct | undefined {
+  return options?.products.find((product) => product.id === id) || findProduct(id);
 }
 
 function paymentCard(payment: ReturnType<typeof db>["pendingPayments"][string], product: GiftProduct): ChatMessage {
@@ -106,6 +110,7 @@ async function beginPurchase(
     sessionId: session.session_id,
     orderId: session.order_id,
     productId: product.id,
+    product,
     approvalUrl: session.iframe_url,
     expiresAt: session.expires_at,
     brief,
@@ -131,7 +136,7 @@ async function finalizePurchase(sessionId: string, giftMessage?: string): Promis
   if (!payment) {
     return [msg({ role: "assistant", text: "That payment session is no longer active. Please choose the gift again." })];
   }
-  const product = findProduct(payment.productId);
+  const product = payment.product || findProduct(payment.productId);
   if (!product) {
     delete db().pendingPayments[sessionId];
     return [msg({ role: "assistant", text: "That product is no longer available. I can find a fresh option." })];
@@ -226,7 +231,7 @@ export async function runTurn(
         if (!db().pendingPayments[next.pendingPaymentId]) next.pendingPaymentId = undefined;
         return { messages, state: next };
       } else {
-        const product = findProduct(pending.productId);
+        const product = pending.product || findProduct(pending.productId);
         messages.push(msg({ role: "assistant", text: "Finish the secure Prava approval first, or say cancel." }));
         if (product) messages.push(paymentCard(pending, product));
         return { messages, state: next };
@@ -236,7 +241,7 @@ export async function runTurn(
     // --- Recurring / mandate intent (only meaningful once we've picked something) ---
     if (RECURRING.test(text) && (next.awaitingApprovalFor || next.lastOptions)) {
       const pid = next.awaitingApprovalFor || next.lastOptions?.recommendedId;
-      const product = pid ? findProduct(pid) : undefined;
+      const product = pid ? optionProduct(next.lastOptions, pid) : undefined;
       if (product) {
         const label = `${next.brief.recipient ? next.brief.recipient + "'s " : ""}${next.brief.occasion || "gift"}, ${/month/i.test(text) ? "monthly" : "every year"}`;
         const mandate = await createMandate({
@@ -267,7 +272,7 @@ export async function runTurn(
       const affirm = AFFIRM.test(text);
       if (selected || affirm) {
         const targetId = selected || next.awaitingApprovalFor;
-        const product = findProduct(targetId);
+        const product = optionProduct(next.lastOptions, targetId);
         if (!product) {
           next.awaitingApprovalFor = undefined;
           messages.push(msg({ role: "assistant", text: "That option is no longer available. I can find a fresh set for you." }));
@@ -289,10 +294,17 @@ export async function runTurn(
     next.brief = options.brief;
     next.lastOptions = options;
 
-    log({ kind: "search", title: "Ranked demo inventory", detail: `${options.products.length} matches considered. Live merchant inventory is not connected in this build.` });
+    const liveCount = options.products.filter((product) => product.source === "merchant").length;
+    log({
+      kind: "search",
+      title: liveCount ? "Searched live Prava UCP inventory" : "Used clearly labelled demo fallback",
+      detail: liveCount
+        ? `${liveCount} live merchant listings considered; price and availability refreshed for this request.`
+        : `${options.products.length} demo ideas considered because live merchant search returned no suitable INR listing.`,
+    });
 
     const allowedProduct = firstAllowedProduct(options);
-    const originalRecommendation = findProduct(options.recommendedId);
+    const originalRecommendation = optionProduct(options, options.recommendedId);
     if (!originalRecommendation) {
       messages.push(msg({
         role: "assistant",

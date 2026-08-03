@@ -2,6 +2,7 @@ import { CATALOG } from "./catalog";
 import { chatJSON, openaiMode } from "./openai";
 import { GiftBrief, GiftProduct, OptionCard } from "./types";
 import { money } from "./money";
+import { searchLiveProducts } from "./prava-shopping";
 
 // ---------------------------------------------------------------------------
 // The gifting agent. Two responsibilities:
@@ -148,7 +149,10 @@ export async function curate(
   // Always compute a heuristic brief + ranking as the safety net.
   const brief = heuristicBrief(userText, prevBrief);
   const ranked = scoreProducts(brief);
-  const top = ranked.slice(0, 3);
+  const live = await searchLiveProducts(userText);
+  const withinBudget = live.filter((product) => brief.budget == null || product.price <= brief.budget);
+  const candidatePool = withinBudget.length ? withinBudget : live.length ? live : ranked;
+  const top = candidatePool.slice(0, 3);
 
   if (openaiMode === "mock" || top.length === 0) {
     const picks = top.length ? top : CATALOG.slice(0, 3);
@@ -162,7 +166,7 @@ export async function curate(
 
   // Live: let OpenAI refine the brief + choose from the shortlisted catalog.
   try {
-    const catalogForModel = ranked.slice(0, 8).map((p) => ({
+    const catalogForModel = candidatePool.slice(0, 8).map((p) => ({
       id: p.id,
       title: p.title,
       price: p.price,
@@ -170,12 +174,15 @@ export async function curate(
       tags: p.tags,
       deliveryDays: p.deliveryDays,
       blurb: p.description,
+      merchant: p.merchant,
+      source: p.source,
     }));
 
     const system = `You are Posy, a warm, tasteful gifting concierge that texts like a thoughtful friend.
 You help people pick and send the perfect gift in India. Be concise (2-3 sentences), never pushy, never salesy.
 You MUST only pick products from the provided candidates. Respect the stated budget as a hard cap.
 Use ₹ for money. Sound like a perceptive human friend: specific, warm, a little imperfect. Never claim a demo catalog item is live merchant inventory.
+When the selected product source is merchant, mention the real merchant naturally. When it is demo, explicitly call it a demo idea.
 Return STRICT JSON with keys:
 {
   "brief": {"recipient","relationship","occasion","budget"(number),"interests"(string[]),"deadlineDays"(number),"notes"},
@@ -193,7 +200,7 @@ Candidate gifts (only choose from these): ${JSON.stringify(catalogForModel)}`;
       Boolean
     );
     const chosen = rankedIds
-      .map((id: string) => CATALOG.find((p) => p.id === id))
+      .map((id: string) => candidatePool.find((p) => p.id === id))
       .filter(Boolean) as GiftProduct[];
     const products = (chosen.length ? chosen : top).slice(0, 3);
     const recommendedId =

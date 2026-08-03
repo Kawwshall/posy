@@ -8,12 +8,16 @@ export interface GiftProduct {
   description: string;
   price: Money;
   currency: "INR";
+  externalProductId?: string;
+  variantId?: string;
+  imageUrl?: string;
   merchant: string;
   merchantUrl: string;
   category: string;
   tags: string[];
   rating: number; // 0-5
   deliveryDays: number;
+  availabilityLabel?: string;
   source: "demo" | "merchant";
 }
 
@@ -60,6 +64,7 @@ export interface PendingPayment {
   sessionId: string;
   orderId: string;
   productId: string;
+  product?: GiftProduct;
   approvalUrl: string;
   expiresAt: string;
   brief: GiftBrief;
