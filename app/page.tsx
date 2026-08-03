@@ -24,15 +24,22 @@ export default function Home() {
               before money moves. More thoughtful friend, less shopping feed.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/demo" className="rounded-lg bg-ink px-5 py-3 font-medium text-paper transition hover:bg-black">
-                Ask Posy →
-              </Link>
-              <Link href="/dashboard" className="rounded-lg border border-line px-5 py-3 font-medium text-ink transition hover:bg-card">
-                See the trust layer
+              <a href="sms:+16462395308?body=Activate" className="rounded-lg bg-ink px-5 py-3 font-medium text-paper transition hover:bg-black">
+                Text Posy on your phone →
+              </a>
+              <Link href="/demo" className="rounded-lg border border-line px-5 py-3 font-medium text-ink transition hover:bg-card">
+                Try it on the web
               </Link>
             </div>
-            <p className="mt-5 text-[13px] text-muted">
-              India-first · prices in ₹ · every sandbox action labelled
+            <p className="mt-4 text-[13px] leading-relaxed text-muted">
+              On a phone: it opens Messages to{" "}
+              <span className="mono text-ink">+1 646 239 5308</span> with “Activate”
+              ready to send (one-time). Then text a gift request. iMessage, RCS and
+              SMS all work. No phone handy? The web demo runs anywhere.
+            </p>
+            <p className="mt-2 text-[12px] text-muted/70">
+              <Link href="/dashboard" className="underline underline-offset-2">See the trust layer</Link>{" "}
+              · India-first · prices in ₹ · every sandbox action labelled
             </p>
           </div>
 

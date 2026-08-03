@@ -51,19 +51,29 @@ function num(text: string, re: RegExp): number | undefined {
   return m ? parseInt(m[1], 10) : undefined;
 }
 
+// Parse an INR budget from free text. Handles "k" suffix FIRST so "under 10k"
+// and "10k" become 10000 (not 10), plus commas and currency words.
+export function parseBudget(t: string): number | undefined {
+  // "10k", "under 10k", "~2.5k", "budget 5k"
+  let m = t.match(/(?:under|below|max|upto|up ?to|around|about|~|budget|for)?\s*₹?\s*(\d+(?:\.\d+)?)\s*k\b/);
+  if (m) return Math.round(parseFloat(m[1]) * 1000);
+  // explicit currency: "₹2,500", "rs 2500", "10000 inr"
+  m =
+    t.match(/₹\s*([\d,]{2,9})/) ||
+    t.match(/(?:rs\.?|inr|rupees)\s*([\d,]{2,9})/) ||
+    t.match(/([\d,]{3,9})\s*(?:rupees|inr|rs\.?)/);
+  if (m) return parseInt(m[1].replace(/,/g, ""), 10);
+  // "under / around / max / budget NNNN"
+  m = t.match(/(?:under|below|max|upto|up ?to|around|about|~|budget)\s*₹?\s*([\d,]{2,9})/);
+  if (m) return parseInt(m[1].replace(/,/g, ""), 10);
+  return undefined;
+}
+
 export function heuristicBrief(text: string, prev: GiftBrief): GiftBrief {
   const t = text.toLowerCase();
   const brief: GiftBrief = { ...prev };
 
-  // budget: "₹2500", "under 2500", "2.5k", "2500 rupees"
-  const budget =
-    num(t, /₹\s*(\d{2,6})/) ??
-    num(t, /(?:under|below|max|upto|up to|around|about|~)\s*₹?\s*(\d{2,6})/) ??
-    num(t, /(\d{2,6})\s*(?:rupees|inr|rs\.?)/) ??
-    (() => {
-      const m = t.match(/(?:under|below|max|around|about|~)?\s*(\d+(?:\.\d+)?)\s*k\b/);
-      return m ? Math.round(Number(m[1]) * 1000) : undefined;
-    })();
+  const budget = parseBudget(t);
   if (budget) brief.budget = budget;
 
   // relationship / recipient
@@ -135,11 +145,16 @@ export function scoreProducts(brief: GiftBrief): GiftProduct[] {
 
 function feasibilityNote(brief: GiftBrief, top: GiftProduct[]): string {
   const rec = top[0];
-  const who = brief.recipient ? `your ${brief.recipient}` : "them";
-  const occ = brief.occasion || "gift";
+  // Build a natural lead-in that never produces awkward possessives like
+  // "them's". Use "your mom's birthday" when we know both, degrade gracefully.
+  let lead: string;
+  if (brief.recipient && brief.occasion) lead = `For your ${brief.recipient}'s ${brief.occasion}`;
+  else if (brief.recipient) lead = `For your ${brief.recipient}`;
+  else if (brief.occasion) lead = `For this ${brief.occasion}`;
+  else lead = "For this one";
   const cap = brief.budget ? `, keeping it under ${money(brief.budget)}` : "";
   const why = rec.description.split(".")[0].toLowerCase();
-  return `For ${who}'s ${occ}${cap}, I'd send the ${rec.title.toLowerCase()}. ${why.charAt(0).toUpperCase()}${why.slice(1)}. A couple of other ideas below if you want options.`;
+  return `${lead}${cap}, I'd send the ${rec.title.toLowerCase()}. ${why.charAt(0).toUpperCase()}${why.slice(1)}. A couple of other ideas below if you want options.`;
 }
 
 export async function curate(
