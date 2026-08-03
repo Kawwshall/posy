@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 // `trigger` value changes. Respects prefers-reduced-motion.
 export function Confetti({ trigger }: { trigger: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const raf = useRef<number>();
+  const raf = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (trigger === 0) return;

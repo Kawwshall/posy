@@ -1,120 +1,129 @@
-<div align="center">
+# Posy
 
-# 🌸 Posy
+**Text one line. We handle the whole gift.**
 
-### Text one line. We handle the whole gift.
+Posy is an India-first agentic gifting concierge you text like a friend. An
+OpenAI agent works out who the gift is for, the occasion, and the budget,
+curates real options, checks each one against your spend rules, and completes a
+purchase with a one-time Visa credential issued by Prava. Then it texts you the
+receipt. No app, no cart, no card numbers exposed.
 
-**An agentic gifting concierge you text like a friend.**
-An OpenAI agent finds the perfect gift, checks it against *your* spend rules,
-and buys it with a **one-time Visa network token via Prava** — then texts you
-the receipt. No apps, no carts, no card numbers exposed.
-
-*Built for the Agentic Commerce Hackathon — OpenAI · Visa · Prava · Linq*
-
-</div>
-
----
+Built for the Agentic Commerce Hackathon. OpenAI does the thinking, Prava moves
+the money, Visa tokens keep it safe, and it lives in your texts.
 
 ## The problem
 
-Gifting is a ~$250B market run on guilt and last-minute panic. People miss
-birthdays, overpay for rush shipping, and abandon carts. The *intent* to give
-a gift is felt in a fleeting moment — usually while texting someone — but every
-tool today forces you to stop, open an app, browse, and check out. The intent
-evaporates.
+Gifting intent is born in conversation and dies in friction. You know it is her
+birthday, you think about it on Tuesday, then the week eats you alive. Every
+tool today makes you stop, open an app, browse, and check out, so the moment
+passes. Posy catches the intent in the thread and finishes the job.
 
 ## What Posy does
 
-Posy captures that intent where it lives — **your text thread** — and closes the
-loop with a real, controlled purchase:
+1. **You text an intent.** "Gift for my mom for her birthday, under 2500, she
+   loves chai and cozy things." The agent extracts recipient, occasion, budget,
+   taste, and deadline.
+2. **It curates and recommends.** It pulls candidates (live Prava UCP merchant
+   inventory when connected, a clearly labelled demo catalog otherwise), then
+   picks a favourite and says why, in a sentence, like a thoughtful friend.
+3. **Guardrails clear it.** Every candidate is checked against your per-gift
+   cap, rolling monthly cap, and step-up approval line before any card exists.
+4. **Prava pays, once.** On approval, Prava opens a merchant and amount scoped
+   session. The person completes secure card entry and passkey approval, and a
+   single-use Visa credential is issued. The browser never sees a reusable card.
+5. **You get a receipt** and can turn the occasion into a recurring mandate
+   that is capped, merchant scoped, and cancellable in one tap.
 
-1. **You text an intent.** *"Get my mom something nice for her birthday, under $60, by Friday."* An OpenAI agent extracts recipient, occasion, budget, taste, and deadline.
-2. **It curates and recommends.** The agent ranks real gifts across a merchant network and explains *why* its favorite fits — like a thoughtful friend, not a search box.
-3. **Guardrails clear it.** Every candidate is checked against your per-gift cap, rolling monthly cap, and step-up approval threshold **before any card is issued.**
-4. **Prava pays, once.** On your approval, Prava mints a **single-use Visa network token** scoped to that one merchant and amount. The merchant is charged; you never expose a reusable card number.
-5. **You get a receipt** — and can turn the occasion into a recurring **mandate** ("never miss mom's birthday") that's capped and pausable anytime.
+Everything the agent does is written to an append-only record you can open at
+any time.
 
-Everything the agent does is written to an **append-only audit ledger** — the
-trust layer that makes autonomous spending safe.
+## Honesty about what runs
 
-## Why this wins the niche + the sponsor tracks
+This is a sandbox build. In live mode it uses real OpenAI reasoning and the real
+Prava sandbox approval surface. The final merchant execution is a documented
+Prava sandbox result: no real money moves and no retail order is placed.
+Products sourced from live Prava merchant search are labelled as such, and demo
+catalog items are always labelled as demo ideas. Delivery dates are never
+invented for live merchant products; shipping is confirmed at checkout.
 
-| Track | How Posy hits it |
+## Track fit
+
+| Track | How Posy fits |
 |---|---|
-| **Linq** (agent messaging) | Posy is *native to texting*. No app to download — it lives in the thread, the exact surface Linq's iMessage agent infra powers. |
-| **Visa** (Intelligent Commerce) | Every purchase is an AI agent buying *on behalf of a consumer* using **Visa network tokens**, issued per-transaction with hard spend controls and full auditability — Visa's agentic-commerce thesis, shipped. |
-| **Prava** (payments + trust) | Deep integration: `sessions` → one-time tokenized credentials, recurring `mandates`, `guardrails`, and a transparent ledger. Prava is load-bearing, not bolted on. |
-| **OpenAI** | The agent brain: structured intent extraction, taste-aware curation, and a warm, concise conversational voice. |
+| Linq (agent messaging) | Posy is native to texting. The orchestrator is channel agnostic and drops onto Linq iMessage infrastructure. |
+| Visa (Intelligent Commerce) | Every purchase is an agent buying on behalf of a consumer with a one-time Visa network token, issued per transaction with hard spend controls and a full audit trail. |
+| Prava (payments and trust) | Deep integration: sessions, payment-result, report-status, revoke, recurring mandates, and Prava Pay wallet product discovery. Prava is the spine, not a bolt-on. |
+| OpenAI | The agent brain: structured intent extraction, taste aware curation, and a warm, concise, human voice. |
 
 ## Architecture
 
 ```
-   iMessage-style thread  ──┐
-   (Linq channel adapter)   │
-                            ▼
-                    ┌───────────────┐   OpenAI (structured JSON)
-   user intent ───▶ │  Orchestrator │◀──────────────────────────┐
-                    │  (state mach.)│   parse brief + curate     │
-                    └───────┬───────┘                            │
-                            │                                    │
-              ┌─────────────┼──────────────┐                     │
-              ▼             ▼              ▼                      │
-        ┌──────────┐  ┌──────────┐  ┌────────────┐        ┌──────────────┐
-        │Guardrails│  │  Prava   │  │Audit ledger│        │ Gift catalog │
-        │ (policy) │  │ payments │  │ (append-   │        │ (merchant    │
-        └──────────┘  └────┬─────┘  │  only)     │        │  network)    │
-                           │        └────────────┘        └──────────────┘
-                           ▼
-        POST /v1/sessions ─▶ GET /payment-result ─▶ one-time Visa token
-        POST /v1/mandates/{id}/charge  (recurring)
+text thread (Linq adapter)
+      |
+      v
+orchestrator  ->  OpenAI (structured JSON: parse brief + curate)
+  state machine
+      |
+      +--> guardrails (spend policy, checked before any card)
+      +--> Prava payments (session -> approval + passkey -> one-time Visa token -> report status)
+      +--> Prava Pay shopping (Ed25519 signed live UCP product search)
+      +--> records (append-only money ledger + action log)
 ```
 
-- **`lib/orchestrator.ts`** — the turn-by-turn agent state machine (brief → curate → guardrails → approval → pay → receipt → mandate).
-- **`lib/agent.ts`** — OpenAI-powered intent extraction + gift curation, with a strong heuristic fallback.
-- **`lib/prava.ts`** — faithful Prava client (sessions, payment-result, mandates, mandate-charge). Live sandbox when a key is present; high-fidelity mock otherwise.
-- **`lib/guardrails.ts`** — the spend policy engine every purchase must pass.
-- **`lib/store.ts`** — in-memory account (ledger, mandates, receipts, spend).
-- **`app/demo`** — the iMessage texting UI + live agent trace.
-- **`app/dashboard`** — the trust dashboard (guardrails, mandates lifecycle, receipts, full ledger).
+- `lib/orchestrator.ts` turn by turn state machine (brief, curate, guardrails, approval, pay, receipt, mandate).
+- `lib/agent.ts` OpenAI intent extraction and curation, with a heuristic fallback.
+- `lib/prava.ts` Prava client (sessions, payment-result, report-status, revoke, mandates). Live sandbox when a key is present, high-fidelity mock otherwise.
+- `lib/prava-shopping.ts` Prava Pay wallet agent for live UCP product discovery, request signed with Ed25519.
+- `lib/guardrails.ts` the spend policy engine every purchase must pass.
+- `lib/store.ts` in-memory account (records, mandates, receipts, spend).
+- `app/demo` the texting UI plus a hideable records drawer (money ledger and every action).
+- `app/dashboard` the trust dashboard (guardrails, mandates, ledger).
+
+## Stack
+
+Next.js (App Router) and React on `vinext` (Vite RSC), deployed to Cloudflare
+Workers via OpenAI Apps hosting.
 
 ## Run it
 
 ```bash
 npm install
-cp .env.example .env.local   # optional — leave blank to run the mock
+cp .env.example .env.local   # optional, leave blank to run the mock
 npm run dev                  # http://localhost:3000
 ```
 
-- **`/`** — the pitch / landing page
-- **`/demo`** — text Posy and watch the agent act (left: thread, right: live trace)
-- **`/dashboard`** — inspect and adjust the trust layer
+- `/` the pitch
+- `/demo` text Posy and watch it work; tap the lock to open your records
+- `/dashboard` inspect and adjust the trust layer
 
-### Going live (real transaction)
+### Going live
 
-Drop a `PRAVA_SECRET_KEY` (sk_test_… from [dashboard.prava.space](https://dashboard.prava.space))
-and an `OPENAI_API_KEY` into `.env.local`. The mode badges then show live API
-connectivity. Prava sessions use its real sandbox approval surface; the final
-merchant execution is a documented sandbox result, not a retail order. Use the
-documented sandbox test card `4622 9431 2313 7789`, CVV `757`, exp `12/27`,
-OTP `456789`.
+Set the values in `.env.local`:
 
-## Payment transparency (by design)
+- `OPENAI_API_KEY` and optional `OPENAI_MODEL` for live reasoning.
+- `PRAVA_SECRET_KEY` (sk_test from dashboard.prava.space) and `PRAVA_BASE_URL`
+  for the real sandbox payment flow.
+- `PRAVA_AGENT_ID` and `PRAVA_AGENT_PRIVATE_KEY` to enable live UCP product
+  discovery through Prava Pay.
 
-- **One-time credentials.** Each purchase gets its own Visa network token + dynamic CVV, scoped to one merchant and one amount. Nothing is stored or reusable.
-- **Policy before payment.** No card is ever minted until the guardrail engine clears the purchase against your caps.
-- **Explicit approval for large spend.** Anything over your auto-approve threshold requires a passkey-style OK in the thread.
-- **Append-only ledger.** Every reasoning step, guardrail check, session, token issuance, and charge is recorded and visible.
-- **Revocable recurring.** Mandates are merchant-scoped, capped, and pausable/cancellable anytime.
+The mode badges in the UI show which integrations are live. Nothing else in the
+code changes.
 
-## What's next
+## Payment transparency by design
 
-- Real Linq iMessage channel adapter (the orchestrator is already channel-agnostic).
-- Live Prava `shop_search`/`shop_checkout` across the connected merchant network (the catalog is a drop-in stand-in).
-- Delivery tracking + thank-you-note automation over text.
-- Recipient memory & taste graph for better curation over time.
+- One-time credentials scoped to one merchant and one amount. Nothing stored or
+  reusable.
+- Policy before payment. No credential is issued until guardrails clear the
+  purchase.
+- Explicit approval for large spend, done through Prava secure entry and
+  passkey.
+- Append-only record of every reasoning step, guardrail check, session, and
+  credential.
+- Recurring mandates are merchant scoped, capped, and cancellable any time.
 
----
+## What is next
 
-<div align="center">
-Made with 🌸 for people who mean to send the gift — and now actually do.
-</div>
+- Real Linq iMessage adapter (the orchestrator is already channel agnostic).
+- Broaden live Prava UCP checkout across more merchants and categories.
+- Delivery tracking and thank-you note automation over text.
+- Recipient memory and a taste graph for better curation over time.
