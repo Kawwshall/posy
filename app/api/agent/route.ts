@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runTurn } from "@/lib/orchestrator";
 import { AgentState } from "@/lib/types";
+import { hydratePending, persistPending } from "@/lib/kv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ export async function POST(req: NextRequest) {
   if (!text.trim()) {
     return NextResponse.json({ error: "empty message" }, { status: 400 });
   }
+  await hydratePending(state);
   const result = await runTurn(text, state);
+  await persistPending(state.pendingPaymentId, result.state);
   return NextResponse.json(result);
 }

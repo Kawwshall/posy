@@ -54,18 +54,19 @@ function num(text: string, re: RegExp): number | undefined {
 // Parse an INR budget from free text. Handles "k" suffix FIRST so "under 10k"
 // and "10k" become 10000 (not 10), plus commas and currency words.
 export function parseBudget(t: string): number | undefined {
+  const pos = (n: number) => (Number.isFinite(n) && n > 0 ? n : undefined);
   // "10k", "under 10k", "~2.5k", "budget 5k"
   let m = t.match(/(?:under|below|max|upto|up ?to|around|about|~|budget|for)?\s*₹?\s*(\d+(?:\.\d+)?)\s*k\b/);
-  if (m) return Math.round(parseFloat(m[1]) * 1000);
+  if (m) return pos(Math.round(parseFloat(m[1]) * 1000));
   // explicit currency: "₹2,500", "rs 2500", "10000 inr"
   m =
     t.match(/₹\s*([\d,]{2,9})/) ||
     t.match(/(?:rs\.?|inr|rupees)\s*([\d,]{2,9})/) ||
     t.match(/([\d,]{3,9})\s*(?:rupees|inr|rs\.?)/);
-  if (m) return parseInt(m[1].replace(/,/g, ""), 10);
+  if (m) return pos(parseInt(m[1].replace(/,/g, ""), 10));
   // "under / around / max / budget NNNN"
   m = t.match(/(?:under|below|max|upto|up ?to|around|about|~|budget)\s*₹?\s*([\d,]{2,9})/);
-  if (m) return parseInt(m[1].replace(/,/g, ""), 10);
+  if (m) return pos(parseInt(m[1].replace(/,/g, ""), 10));
   return undefined;
 }
 
@@ -124,7 +125,7 @@ export function scoreProducts(brief: GiftBrief): GiftProduct[] {
       if (contextTags.has(tag)) score += 2; // inferred context: light
     }
     // budget fit: reward spending a healthy fraction, hard-penalize over-budget
-    if (brief.budget != null) {
+    if (brief.budget != null && brief.budget > 0) {
       if (p.price > brief.budget) score -= 100;
       else {
         const ratio = p.price / brief.budget;
@@ -171,7 +172,7 @@ export async function curate(
     "gift box INR",
   ].join(" ");
   const live = await searchLiveProducts(liveQuery);
-  const budgetOk = (p: GiftProduct) => brief.budget == null || p.price <= brief.budget;
+  const budgetOk = (p: GiftProduct) => brief.budget == null || brief.budget <= 0 || p.price <= brief.budget;
   // Build a de-duplicated pool that always prefers real merchant products that
   // fit the budget, then budget-fit demo ideas, then anything else, so we never
   // dead-end with only over-budget live items to show.

@@ -4,13 +4,16 @@ import { pravaEnvironment, pravaMode } from "@/lib/prava";
 import { openaiMode, OPENAI_MODEL } from "@/lib/openai";
 import { pravaShoppingMode } from "@/lib/prava-shopping";
 import { linqMode } from "@/lib/linq";
+import { kvMode } from "@/lib/kv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const d = db();
+  const store = await kvMode();
   return NextResponse.json({
+    store,
     guardrails: d.guardrails,
     ledger: d.ledger,
     mandates: d.mandates,

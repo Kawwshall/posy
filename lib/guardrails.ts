@@ -24,7 +24,7 @@ export function checkGuardrails(
   }
 
   // 2. The budget the user stated in this brief is itself a hard cap
-  if (briefBudget != null && product.price > briefBudget) {
+  if (briefBudget != null && briefBudget > 0 && product.price > briefBudget) {
     allowed = false;
     reasons.push(
       `${money(product.price)} is over the ${money(briefBudget)} budget you set for this gift.`
