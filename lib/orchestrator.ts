@@ -32,7 +32,7 @@ const AFFIRM = /\b(yes|yep|yeah|yup|sure|ok|okay|do it|send it|send|go|confirm|c
 const DECLINE = /\b(no|nope|nah|cancel|stop|wait|don'?t|not now)\b/i;
 const RECURRING = /\b(every year|each year|annually|recurring|remember|never miss|every birthday|every month|monthly)\b/i;
 const CHECK_PAYMENT = /\b(i('| a)?ve approved|approved with prava|check payment|check status|continue checkout|payment done)\b/i;
-const SIMULATE = /\b(simulate sandbox settlement|complete sandbox checkout|demo settle|simulate settlement)\b/i;
+const SIMULATE = /\b(simulate sandbox settlement|complete sandbox checkout|demo settle|simulate settlement|settle|pay now|pay|done)\b/i;
 
 function resolveSelection(text: string, opts: OptionCard): string | undefined {
   const t = text.toLowerCase();
