@@ -178,7 +178,7 @@ export async function curate(
       price: p.price,
       category: p.category,
       tags: p.tags,
-      deliveryDays: p.deliveryDays,
+      delivery: p.source === "merchant" ? "shipping time confirmed only at checkout" : `${p.deliveryDays} days (demo estimate)`,
       blurb: p.description,
       merchant: p.merchant,
       source: p.source,
@@ -189,6 +189,7 @@ You help people pick and send the perfect gift in India. Be concise (2-3 sentenc
 You MUST only pick products from the provided candidates. Respect the stated budget as a hard cap.
 Use ₹ for money. Sound like a perceptive human friend: specific, warm, a little imperfect. Never claim a demo catalog item is live merchant inventory.
 When the selected product source is merchant, mention the real merchant naturally. When it is demo, explicitly call it a demo idea.
+Never invent or infer a delivery date for live merchant products. Say shipping is confirmed at checkout.
 Return STRICT JSON with keys:
 {
   "brief": {"recipient","relationship","occasion","budget"(number),"interests"(string[]),"deadlineDays"(number),"notes"},
