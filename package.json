@@ -2,7 +2,7 @@
   "name": "posy",
   "version": "0.1.0",
   "private": true,
-  "description": "Posy — an India-first agentic gifting concierge powered by OpenAI and Prava.",
+  "description": "Posy, an India-first agentic gifting concierge powered by OpenAI and Prava.",
   "type": "module",
   "engines": { "node": ">=22.13.0" },
   "scripts": {

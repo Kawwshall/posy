@@ -8,7 +8,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Warm boutique palette — cream paper, ink, one confident claret,
+        // Warm boutique palette. Cream paper, ink, one confident claret,
         // a soft stem-green reserved for "sent/cleared".
         paper: "#F4EEE1",
         card: "#FCFAF4",
@@ -34,7 +34,7 @@ const config: Config = {
           DEFAULT: "#3C6E56",
           bg: "#E7EFE7",
         },
-        // authentic iMessage — intentional, not generic
+        // authentic iMessage, intentional, not generic
         imsg: {
           blue: "#0a84ff",
           gray: "#e9e9eb",
