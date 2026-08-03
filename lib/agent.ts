@@ -1,4 +1,3 @@
-import { CATALOG } from "./catalog";
 import { chatJSON, openaiMode } from "./openai";
 import { GiftBrief, GiftProduct, OptionCard } from "./types";
 import { money } from "./money";
@@ -110,40 +109,6 @@ export function heuristicBrief(text: string, prev: GiftBrief): GiftBrief {
   return brief;
 }
 
-export function scoreProducts(brief: GiftBrief): GiftProduct[] {
-  // What someone explicitly says they're into should dominate. It's the
-  // clearest signal of taste. Relationship/occasion are softer context.
-  const interestTags = new Set((brief.interests || []).map((x) => x.toLowerCase()));
-  const contextTags = new Set<string>();
-  if (brief.relationship) (RELATIONSHIP_TAGS[brief.relationship] || []).forEach((x) => contextTags.add(x));
-  if (brief.occasion) (OCCASION_TAGS[brief.occasion] || []).forEach((x) => contextTags.add(x));
-
-  const scored = CATALOG.map((p) => {
-    let score = 0;
-    for (const tag of p.tags) {
-      if (interestTags.has(tag)) score += 6; // stated interest: heavy
-      if (contextTags.has(tag)) score += 2; // inferred context: light
-    }
-    // budget fit: reward spending a healthy fraction, hard-penalize over-budget
-    if (brief.budget != null && brief.budget > 0) {
-      if (p.price > brief.budget) score -= 100;
-      else {
-        const ratio = p.price / brief.budget;
-        if (ratio >= 0.6 && ratio <= 0.98) score += 4;
-        else if (ratio >= 0.4) score += 2.5;
-        else score += 1;
-      }
-    }
-    // deadline feasibility
-    if (brief.deadlineDays != null && p.deliveryDays > brief.deadlineDays) score -= 6;
-    score += p.rating * 0.5; // gentle quality nudge, not a tie-breaker that overrides fit
-    return { p, score };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored.filter((s) => s.score > -50).map((s) => s.p);
-}
-
 function feasibilityNote(brief: GiftBrief, top: GiftProduct[]): string {
   const rec = top[0];
   // Build a natural lead-in that never produces awkward possessives like
@@ -158,83 +123,71 @@ function feasibilityNote(brief: GiftBrief, top: GiftProduct[]): string {
   return `${lead}${cap}, I'd send the ${rec.title.toLowerCase()}. ${why.charAt(0).toUpperCase()}${why.slice(1)}. A couple of other ideas below if you want options.`;
 }
 
+const NO_MATCH =
+  "I could not find a real product for that right now. Try a different interest, another occasion, or a higher budget.";
+
 export async function curate(
   userText: string,
   prevBrief: GiftBrief
 ): Promise<OptionCard> {
-  // Always compute a heuristic brief + ranking as the safety net.
   const brief = heuristicBrief(userText, prevBrief);
-  const ranked = scoreProducts(brief);
+  const budgetOk = (p: GiftProduct) => brief.budget == null || brief.budget <= 0 || p.price <= brief.budget;
+
+  // Real merchant inventory only. No demo catalogue anywhere.
   const liveQuery = [
     "India",
+    brief.recipient || "",
     ...(brief.interests || []),
     brief.occasion || "thoughtful",
-    "gift box INR",
-  ].join(" ");
+    "gift",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const live = await searchLiveProducts(liveQuery);
-  const budgetOk = (p: GiftProduct) => brief.budget == null || brief.budget <= 0 || p.price <= brief.budget;
-  // Build a de-duplicated pool that always prefers real merchant products that
-  // fit the budget, then budget-fit demo ideas, then anything else, so we never
-  // dead-end with only over-budget live items to show.
-  const seen = new Set<string>();
-  const take = (arr: GiftProduct[]) => arr.filter((p) => (seen.has(p.id) ? false : seen.add(p.id)));
-  const candidatePool = [
-    ...take(live.filter(budgetOk)),
-    ...take(ranked.filter(budgetOk)),
-    ...take(live),
-    ...take(ranked),
-  ];
-  const top = candidatePool.slice(0, 3);
+  const withinBudget = live.filter(budgetOk);
+  const pool = withinBudget.length ? withinBudget : live;
+  const top = pool.slice(0, 3);
 
-  if (openaiMode === "mock" || top.length === 0) {
-    const picks = top.length ? top : CATALOG.slice(0, 3);
-    return {
-      products: picks,
-      recommendedId: picks[0].id,
-      reasoning: feasibilityNote(brief, picks),
-      brief,
-    };
+  // Nothing real to show: say so honestly rather than inventing a demo item.
+  if (top.length === 0) {
+    return { products: [], recommendedId: "", reasoning: NO_MATCH, brief };
   }
 
-  // Live: let OpenAI refine the brief + choose from the shortlisted catalog.
+  if (openaiMode === "mock") {
+    return { products: top, recommendedId: top[0].id, reasoning: feasibilityNote(brief, top), brief };
+  }
+
   try {
-    const catalogForModel = candidatePool.slice(0, 8).map((p) => ({
+    const candidates = pool.slice(0, 8).map((p) => ({
       id: p.id,
       title: p.title,
       price: p.price,
-      category: p.category,
-      tags: p.tags,
-      delivery: p.source === "merchant" ? "shipping time confirmed only at checkout" : `${p.deliveryDays} days (demo estimate)`,
-      blurb: p.description,
       merchant: p.merchant,
-      source: p.source,
+      blurb: p.description,
     }));
 
     const system = `You are Posy, a warm, tasteful gifting concierge that texts like a thoughtful friend.
-You help people pick and send the perfect gift in India. Be concise (2-3 sentences), never pushy, never salesy.
-You MUST only pick products from the provided candidates. Respect the stated budget as a hard cap.
-Use ₹ for money. Sound like a perceptive human friend: specific, warm, a little imperfect. Never claim a demo catalog item is live merchant inventory.
-Write like a person texting: short sentences, plain punctuation. Never use em dashes or en dashes; use commas, periods, or parentheses instead. No emoji.
-When the selected product source is merchant, mention the real merchant naturally. When it is demo, explicitly call it a demo idea.
-Never invent or infer a delivery date for live merchant products. Say shipping is confirmed at checkout.
+You help people pick and send a real gift in India, chosen only from real merchant listings. Be concise (2 to 3 sentences), never pushy, never salesy.
+You MUST only pick products from the provided candidates. Every candidate is a real merchant product. Respect the stated budget as a hard cap.
+Use the rupee sign for money. Sound like a perceptive human friend: specific, warm, a little imperfect.
+Write like a person texting: short sentences, plain punctuation. Never use em dashes or en dashes; use commas, periods or parentheses. No emoji.
+Mention the real merchant naturally. Never invent a delivery date; say shipping is confirmed at checkout.
 Return STRICT JSON with keys:
 {
   "brief": {"recipient","relationship","occasion","budget"(number),"interests"(string[]),"deadlineDays"(number),"notes"},
   "recommendedId": string (one of candidate ids),
   "rankedIds": string[] (2-3 candidate ids, best first),
-  "message": string (your warm text-message reply recommending the top pick, referencing why it fits)
+  "message": string (your warm reply recommending the top pick, referencing why it fits)
 }`;
 
     const user = `Their message: "${userText}"
 Known so far: ${JSON.stringify(prevBrief)}
-Candidate gifts (only choose from these): ${JSON.stringify(catalogForModel)}`;
+Candidate gifts (only choose from these real products): ${JSON.stringify(candidates)}`;
 
     const out = await chatJSON(system, user);
-    const rankedIds: string[] = (out.rankedIds || [out.recommendedId]).filter(
-      Boolean
-    );
+    const rankedIds: string[] = (out.rankedIds || [out.recommendedId]).filter(Boolean);
     const chosen = rankedIds
-      .map((id: string) => candidatePool.find((p) => p.id === id))
+      .map((id: string) => pool.find((p) => p.id === id))
       .filter(Boolean) as GiftProduct[];
     const products = (chosen.length ? chosen : top).slice(0, 3);
     const recommendedId =
@@ -249,14 +202,7 @@ Candidate gifts (only choose from these): ${JSON.stringify(catalogForModel)}`;
       brief: { ...brief, ...(out.brief || {}) },
     };
   } catch (e) {
-    // Any OpenAI hiccup: fall back gracefully to the heuristic result.
-    const picks = top.length ? top : CATALOG.slice(0, 3);
-    return {
-      products: picks,
-      recommendedId: picks[0].id,
-      reasoning: feasibilityNote(brief, picks),
-      brief,
-    };
+    return { products: top, recommendedId: top[0].id, reasoning: feasibilityNote(brief, top), brief };
   }
 }
 
