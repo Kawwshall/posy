@@ -488,7 +488,7 @@ function PaymentApprovalCard({ data, onAction, disabled }: { data: PaymentApprov
             disabled={disabled}
             className="rounded-lg border border-line py-2 text-[13px] font-medium text-ink hover:bg-paper disabled:cursor-default disabled:opacity-50"
           >
-            {mock ? "Simulate approval" : "I’ve approved — check status"}
+            {mock ? "Simulate approval" : "I’ve approved, check status"}
           </button>
           {!mock && (
             <button
@@ -636,7 +636,7 @@ function ReceiptCard({ data }: { data: Receipt }) {
             <Info k="total" v={money(data.amount)} mono />
           </div>
           <div className="rounded-lg px-3 py-2 text-[11px] leading-snug text-stem" style={{ background: "#E7EFE7" }}>
-            {sandbox ? "Prava sandbox authorization—no real money moved and no retail order was placed." : "One-time Visa token. The merchant never sees a reusable card number."}
+            {sandbox ? "Prava sandbox authorization. No real money moved and no retail order was placed." : "One-time Visa token. The merchant never sees a reusable card number."}
             Full record in{" "}
             <Link href="/dashboard" className="underline">the ledger</Link>.
           </div>

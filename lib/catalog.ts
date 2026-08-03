@@ -21,7 +21,7 @@ export const CATALOG: GiftProduct[] = [
   {
     id: "gft_selfcare_box",
     title: "Quiet Evening Self-care Box",
-    description: "Soy candle, bath salts, herbal tea and a soft eye mask—nothing too fussy.",
+    description: "Soy candle, bath salts, herbal tea and a soft eye mask. Nothing too fussy.",
     price: 2299,
     currency: "INR",
     merchant: "Posy demo inventory",
@@ -91,7 +91,7 @@ export const CATALOG: GiftProduct[] = [
   {
     id: "gft_chocolate_note",
     title: "Chocolate, But Personal",
-    description: "A small-batch truffle box with a note that sounds like you—not a greeting card.",
+    description: "A small-batch truffle box with a note that sounds like you, not a greeting card.",
     price: 999,
     currency: "INR",
     merchant: "Posy demo inventory",

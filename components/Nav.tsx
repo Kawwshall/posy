@@ -11,17 +11,14 @@ export function Nav() {
         </Link>
         <nav className="flex items-center gap-1 text-[15px]">
           <Link href="/demo" className="rounded-lg px-3 py-2 text-muted transition hover:text-ink">
-            Try it
+            Web demo
           </Link>
-          <Link href="/dashboard" className="hidden rounded-lg px-3 py-2 text-muted transition hover:text-ink sm:block">
-            How the money works
-          </Link>
-          <Link
-            href="/demo"
+          <a
+            href="sms:+16462395308?body=Activate"
             className="ml-1 rounded-lg bg-ink px-4 py-2 text-[15px] font-medium text-paper transition hover:bg-black"
           >
-            Ask Posy
-          </Link>
+            Text Posy
+          </a>
         </nav>
       </div>
     </header>

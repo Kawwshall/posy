@@ -1,69 +1,31 @@
-# Posy — 90-second demo script (for the video + live judging)
+# Posy demo script (about 60 seconds)
 
-**Goal:** show a real, controlled purchase completed inside a text thread, and
-make the trust layer the hero. Keep energy warm and fast.
+Goal: show one text turn into a real, controlled, sandbox purchase, then show
+that the money is on the record. Keep it warm and plain.
 
----
+## Web (reliable, works on any screen)
 
-### 0:00 — Hook (landing page `/`)
-> "Everyone means to send the gift. Almost nobody does — the moment passes in a
-> text thread. Posy catches it *there* and finishes the job."
+1. Open `posy.getcontios.com/demo`.
+2. Type: "gift for my mum, she loves chai, under 5000".
+3. Posy replies with one pick and two options, plus a spend check. Say: "It read the intent, checked my limits, and picked one thing with a reason."
+4. Tap the recommended gift, then Approve and send.
+5. On the payment card, tap "Complete sandbox checkout (demo)". A receipt lands. Say: "One-time Visa token in the Prava sandbox. No real money, no order placed, and it says so."
+6. Tap the lock at the bottom right. Show the Money ledger (who and how much) and Every action (search, guardrail check, session, receipt). Say: "Nothing happens off this list."
 
-Point at the four chips: **OpenAI agent · Visa network tokens · Prava trust
-layer · Lives in your texts.**
+## Text (the real thing)
 
-### 0:12 — The text (`/demo`)
-Type (or tap the quick-start):
-> **"Get my mom something nice for her birthday, under $60, by Friday 🎂"**
+1. From your phone, text `Activate` to +1 646 239 5308, then "gift for my mum, she loves chai, under 5000".
+2. Posy replies in the thread with the pick, the spend check, and a pay step.
+3. Reply "yes", then "done". You get the receipt in the thread.
+4. iMessage shows the Posy contact card with the logo. Say: "Same agent, live in a normal text thread. iMessage, RCS and SMS."
 
-While it "types," narrate:
-> "An OpenAI agent is pulling out the recipient, the occasion, the budget, and
-> the deadline."
+## One-line pitch
 
-### 0:25 — Curation + the trust moment
-Three gift options appear with a **Top Pick**, plus a **Spend check** card:
-> "It curated real gifts across a merchant network and picked a favorite — and
-> notice: before anything can be bought, it runs a **guardrail check** against
-> my caps. Green means cleared."
+You care, you are busy, Posy does the rest. It reads a one line text, finds a
+good gift, stays inside your limits, and pays with a card that works once.
 
-Gesture to the **live agent trace** on the right:
-> "Everything it does is on the record — search, reasoning, the guardrail
-> decision. Nothing happens off the books."
+## If a judge asks
 
-### 0:45 — Approve → real payment
-Tap **🔐 Approve & send**. As the receipt lands:
-> "On my OK, **Prava mints a one-time Visa network token** — single-use, scoped
-> to this one merchant and amount. The merchant gets charged; my real card is
-> never exposed. Here's the receipt: order number, card ending 7789, arrives
-> Tuesday."
-
-Point to the trace filling in: **session opened → Visa token issued → charged →
-receipt**, and the **spend meter** ticking up.
-
-### 1:05 — Recurring (retention story)
-Reply:
-> **"yes, remember mom's birthday every year"**
-
-> "That sets up a **Prava mandate** — capped per charge, merchant-scoped, and I
-> can pause or cancel anytime. That's how Posy becomes a habit, not a one-off."
-
-### 1:15 — Trust dashboard (`/dashboard`)
-> "And here's the whole trust layer: my spend guardrails — drag a slider and the
-> agent's behavior changes instantly — my recurring mandates, every receipt, and
-> an append-only audit ledger of every action."
-
-### 1:25 — Close
-> "Agentic commerce only works if you can trust the agent with money. Posy is
-> that — a gift concierge in your texts, powered by OpenAI, paid with Visa
-> network tokens through Prava, with proof and control built in. Text one line;
-> we handle the whole gift."
-
----
-
-## Judge Q&A cheat sheet
-- **Is it a real transaction?** Yes — `POST /v1/sessions` → `GET /payment-result` → one-time Visa token → charge → receipt. Add a Prava sandbox key and it hits the live sandbox with the documented test card; no code changes.
-- **Where's the OpenAI usage?** Structured intent extraction + taste-aware curation + the conversational voice (`gpt-4o`, JSON mode), with a heuristic fallback so the demo never breaks.
-- **Linq fit?** The product is native to texting; the orchestrator is channel-agnostic and drops onto Linq's iMessage infra.
-- **Visa fit?** An AI agent purchasing on behalf of a consumer using Visa network tokens, with per-transaction scoping, spend controls, and full auditability.
-- **Business model?** Take rate on GMV + merchant placement; recurring occasion mandates drive retention in a ~$250B market.
-- **What's mocked vs real today?** Payment rails + agent are real (or live-ready). The merchant catalog stands in for Prava `shop_search`; swapping it in is a drop-in.
+- Real transaction? Yes, in the Prava sandbox: session, one-time Visa token, report status, receipt. No real money and no retail order.
+- Live products? Yes, through Prava Pay when a listing fits the budget, otherwise clearly labelled demo ideas.
+- Android? Yes, over RCS or SMS through Linq. The contact card is iMessage only in sandbox.
