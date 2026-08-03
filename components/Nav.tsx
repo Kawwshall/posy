@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Mark } from "./Mark";
+import { AuthButton } from "./AuthButton";
 
 export function Nav() {
   return (
@@ -13,6 +14,7 @@ export function Nav() {
           <Link href="/demo" className="rounded-lg px-3 py-2 text-muted transition hover:text-ink">
             Web demo
           </Link>
+          <AuthButton />
           <a
             href="sms:+16462395308?body=Activate"
             className="ml-1 rounded-lg bg-ink px-4 py-2 text-[15px] font-medium text-paper transition hover:bg-black"
