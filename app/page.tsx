@@ -85,7 +85,7 @@ export default function Home() {
             <a href="https://github.com/Kawwshall/posy" className="hover:text-ink">Code</a>
           </nav>
           <p className="mono w-full text-[11px] text-muted/70 md:w-auto">
-            OpenAI thinks. Prava pays, once. You approve.
+            Powered by OpenAI, Prava and Linq.
           </p>
         </div>
       </footer>

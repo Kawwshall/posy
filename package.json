@@ -4,7 +4,9 @@
   "private": true,
   "description": "Posy, an India-first agentic gifting concierge powered by OpenAI and Prava.",
   "type": "module",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
