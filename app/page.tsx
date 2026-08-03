@@ -51,16 +51,16 @@ export default function Home() {
                 <Mark className="h-3.5 w-3.5" /> Posy
               </div>
               <div className="space-y-2">
-                <B me>gift for mum, she loves chai, under ₹2,500</B>
+                <B me>gift for mum, she loves chai, under ₹5,000</B>
                 <B>
-                  I&apos;d send the Quiet Evening box. Caring, not panic-bought.
-                  ₹2,299, inside your limit. Send it?
+                  I&apos;d send the masala chai gift box from Sancha Tea. Warm,
+                  easy, and inside your limit at ₹4,060. Send it?
                 </B>
                 <B me>yep, that&apos;s her</B>
                 <B>
                   Done. Paid with a one-time card, every step on record.
                   <span className="mono mt-1 block text-[11px] opacity-70">
-                    Visa ···· 7789 · ₹2,299 · sandbox
+                    Visa ···· 7789 · ₹4,060 · sandbox
                   </span>
                 </B>
               </div>

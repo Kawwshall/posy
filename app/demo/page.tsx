@@ -207,7 +207,7 @@ export default function DemoPage() {
         </div>
 
         <p className="mono mt-3 text-center text-[11px] text-muted">
-          live OpenAI reasoning · Prava sandbox payments · demo inventory clearly labelled
+          live OpenAI reasoning · real merchant products via Prava · sandbox payments
         </p>
       </div>
 
@@ -529,9 +529,9 @@ function ProductRow({ p, recommended }: { p: GiftProduct; recommended?: boolean 
           {recommended && <span className="mono shrink-0 rounded bg-claret px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white">pick</span>}
         </div>
         <div className="text-[11px] text-muted">
-          {p.source === "demo" ? "demo idea" : `live · ${p.merchant}`}
+          {p.merchant}
           {p.rating > 0 ? ` · ★${p.rating}` : ""}
-          {p.source === "merchant" ? " · shipping at checkout" : ` · ${p.deliveryDays}-day`}
+          {" · shipping at checkout"}
         </div>
       </div>
       <div className="mono shrink-0 self-center text-[13px] font-medium text-ink">{money(p.price)}</div>

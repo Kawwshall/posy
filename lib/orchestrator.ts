@@ -356,13 +356,13 @@ export async function runTurn(
     next.brief = options.brief;
     next.lastOptions = options;
 
-    const liveCount = options.products.filter((product) => product.source === "merchant").length;
+    const liveCount = options.products.length;
     log({
       kind: "search",
-      title: liveCount ? "Searched live Prava UCP inventory" : "Used clearly labelled demo fallback",
+      title: liveCount ? "Searched live merchant inventory" : "No live match",
       detail: liveCount
-        ? `${liveCount} live merchant listings considered; price and availability refreshed for this request.`
-        : `${options.products.length} demo ideas considered because live merchant search returned no suitable INR listing.`,
+        ? `${liveCount} real merchant listings considered; price and availability refreshed for this request.`
+        : "No real merchant listing matched this request.",
     });
 
     const allowedProduct = firstAllowedProduct(options);
@@ -370,7 +370,7 @@ export async function runTurn(
     if (!originalRecommendation) {
       messages.push(msg({
         role: "assistant",
-        text: "I couldn't find an available gift that matches those details. Try a different interest, deadline, or budget.",
+        text: options.reasoning || "I could not find a real gift for that just now. Try a different interest, occasion, or a higher budget.",
       }));
       next.awaitingApprovalFor = undefined;
       return { messages, state: next };
@@ -378,11 +378,11 @@ export async function runTurn(
 
     if (!allowedProduct) {
       const blocked = checkGuardrails(originalRecommendation, options.brief.budget);
-      log({ kind: "curation", title: "No purchasable match", detail: blocked.reasons.join(" "), amount: originalRecommendation.price });
+      log({ kind: "curation", title: "Closest real match is over budget", detail: blocked.reasons.join(" "), amount: originalRecommendation.price });
       log({ kind: "declined", title: "Recommendation held by guardrails", detail: blocked.reasons.join(" "), amount: originalRecommendation.price });
       messages.push(msg({
         role: "assistant",
-        text: `I held off because I couldn't find a catalog match inside all your limits. ${blocked.reasons.join(" ")} Raise the budget or account ceiling and I'll try again.`,
+        text: `The closest real match I found is the ${originalRecommendation.title.toLowerCase()} from ${originalRecommendation.merchant} at ${money(originalRecommendation.price)}, which is above your limit. ${blocked.reasons.join(" ")} Nudge the budget up and I'll send it.`,
       }));
       next.awaitingApprovalFor = undefined;
       return { messages, state: next };
