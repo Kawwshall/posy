@@ -92,8 +92,9 @@ npm run dev                  # http://localhost:3000
 ### Going live (real transaction)
 
 Drop a `PRAVA_SECRET_KEY` (sk_test_… from [dashboard.prava.space](https://dashboard.prava.space))
-and an `OPENAI_API_KEY` into `.env.local`. No code changes — the mode badges in
-the UI flip to **live**, and purchases hit the real Prava sandbox. Use the
+and an `OPENAI_API_KEY` into `.env.local`. The mode badges then show live API
+connectivity. Prava sessions use its real sandbox approval surface; the final
+merchant execution is a documented sandbox result, not a retail order. Use the
 documented sandbox test card `4622 9431 2313 7789`, CVV `757`, exp `12/27`,
 OTP `456789`.
 

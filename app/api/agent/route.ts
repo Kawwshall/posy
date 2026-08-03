@@ -6,9 +6,21 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const text: string = (body?.text || "").toString();
-  const state: AgentState = body?.state || { brief: {} };
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "invalid request body" }, { status: 400 });
+  }
+  const input = body as { text?: unknown; state?: unknown };
+  const text = typeof input.text === "string" ? input.text : "";
+  const candidate = input.state;
+  const state: AgentState = candidate && typeof candidate === "object" && "brief" in candidate
+    ? candidate as AgentState
+    : { brief: {} };
   if (!text.trim()) {
     return NextResponse.json({ error: "empty message" }, { status: 400 });
   }

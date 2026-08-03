@@ -2,25 +2,36 @@
   "name": "posy",
   "version": "0.1.0",
   "private": true,
-  "description": "Posy — agentic gifting concierge you text. Powered by OpenAI + Prava (Visa network tokens) over Linq.",
+  "description": "Posy — an India-first agentic gifting concierge powered by OpenAI and Prava.",
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "vinext dev",
+    "build": "vinext build",
+    "start": "vinext start",
+    "build:next": "next build"
   },
   "dependencies": {
-    "next": "14.2.5",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
   },
   "devDependencies": {
-    "@types/node": "20.14.10",
-    "@types/react": "18.3.3",
-    "@types/react-dom": "18.3.0",
+    "@cloudflare/vite-plugin": "^1.37.1",
+    "@types/node": "^22.19.19",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vitejs/plugin-rsc": "^0.5.26",
     "autoprefixer": "10.4.19",
-    "postcss": "8.4.39",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.35",
+    "postcss": "8.5.19",
+    "react-server-dom-webpack": "^19.2.6",
     "tailwindcss": "3.4.6",
-    "typescript": "5.5.3"
+    "typescript": "^5.9.3",
+    "vinext": "^0.0.50",
+    "vite": "^8.0.13",
+    "wrangler": "^4.92.0"
   }
 }

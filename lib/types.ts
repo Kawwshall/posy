@@ -1,18 +1,20 @@
 // Shared domain types for Posy · the agentic gifting concierge.
 
-export type Money = number; // stored in whole USD dollars for demo simplicity
+export type Money = number; // stored in whole INR rupees
 
 export interface GiftProduct {
   id: string;
   title: string;
   description: string;
   price: Money;
+  currency: "INR";
   merchant: string;
   merchantUrl: string;
   category: string;
   tags: string[];
   rating: number; // 0-5
   deliveryDays: number;
+  source: "demo" | "merchant";
 }
 
 export interface GiftBrief {
@@ -43,6 +45,35 @@ export interface PravaCredentials {
   expiry_year: string;
   brand: string; // "Visa"
   last4: string;
+}
+
+export type PravaPaymentStatus = "pending" | "processing" | "awaiting_result" | "completed" | "failed";
+
+export interface PravaPaymentResult {
+  status: PravaPaymentStatus;
+  txnRefId?: string;
+  credentials?: PravaCredentials;
+  error?: { code?: string; message?: string };
+}
+
+export interface PendingPayment {
+  sessionId: string;
+  orderId: string;
+  productId: string;
+  approvalUrl: string;
+  expiresAt: string;
+  brief: GiftBrief;
+  status: PravaPaymentStatus;
+  mode: "live" | "mock";
+}
+
+export interface PaymentApprovalCard {
+  sessionId: string;
+  product: GiftProduct;
+  approvalUrl: string;
+  expiresAt: string;
+  status: PravaPaymentStatus;
+  mode: "live" | "mock";
 }
 
 export interface PravaMandate {
@@ -106,20 +137,23 @@ export interface Receipt {
   id: string;
   product: GiftProduct;
   amount: Money;
-  card: { brand: string; last4: string; network_token: string };
+  // Never persist or return the payment credential after checkout. Receipts
+  // only need the non-sensitive network and last four digits.
+  card: { brand: string; last4: string };
   merchant: string;
   orderRef: string;
   giftMessage?: string;
   recipient?: string;
   eta: string;
   createdAt: string;
+  environment?: "mock" | "sandbox" | "production";
 }
 
 // ---- Chat / agent transport ----
 
 export type ChatRole = "user" | "assistant";
 
-export type RichKind = "options" | "approval" | "receipt" | "mandate" | "trace";
+export type RichKind = "options" | "approval" | "payment" | "receipt" | "mandate" | "trace";
 
 export interface OptionCard {
   products: GiftProduct[];
@@ -142,6 +176,7 @@ export interface ChatMessage {
   rich?:
     | { kind: "options"; data: OptionCard }
     | { kind: "approval"; data: ApprovalCard }
+    | { kind: "payment"; data: PaymentApprovalCard }
     | { kind: "receipt"; data: Receipt }
     | { kind: "mandate"; data: PravaMandate }
     | { kind: "trace"; data: LedgerEntry[] };
@@ -152,4 +187,5 @@ export interface AgentState {
   brief: GiftBrief;
   lastOptions?: OptionCard;
   awaitingApprovalFor?: string; // product id
+  pendingPaymentId?: string; // server-held Prava session id
 }

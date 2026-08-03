@@ -1,5 +1,6 @@
 import { db } from "./store";
 import { GiftProduct, GuardrailDecision } from "./types";
+import { money } from "./money";
 
 // The trust layer. Every candidate purchase is checked against the user's
 // spend policy BEFORE any card is issued. This is what makes an autonomous
@@ -18,7 +19,7 @@ export function checkGuardrails(
   if (product.price > g.perGiftCap) {
     allowed = false;
     reasons.push(
-      `$${product.price} exceeds your per-gift cap of $${g.perGiftCap}.`
+      `${money(product.price)} exceeds your per-gift cap of ${money(g.perGiftCap)}.`
     );
   }
 
@@ -26,7 +27,7 @@ export function checkGuardrails(
   if (briefBudget != null && product.price > briefBudget) {
     allowed = false;
     reasons.push(
-      `$${product.price} is over the $${briefBudget} budget you set for this gift.`
+      `${money(product.price)} is over the ${money(briefBudget)} budget you set for this gift.`
     );
   }
 
@@ -35,7 +36,7 @@ export function checkGuardrails(
   if (projected > g.monthlyCap) {
     allowed = false;
     reasons.push(
-      `This would push your monthly gifting to $${projected}, over your $${g.monthlyCap} cap.`
+      `This would push your monthly gifting to ${money(projected)}, over your ${money(g.monthlyCap)} cap.`
     );
   }
 
@@ -49,7 +50,7 @@ export function checkGuardrails(
   if (allowed && product.price > g.requireApprovalOver) {
     requiresApproval = true;
     reasons.push(
-      `Over your $${g.requireApprovalOver} auto-approve line, so I'll need your OK.`
+      `Over your ${money(g.requireApprovalOver)} auto-approve line, so I'll need your OK.`
     );
   }
 

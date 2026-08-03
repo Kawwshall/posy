@@ -4,22 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Confetti } from "@/components/Confetti";
 import { Mark, Swatch } from "@/components/Mark";
+import { money } from "@/lib/money";
 import {
   AgentState,
   ChatMessage,
   GiftProduct,
   LedgerEntry,
   OptionCard,
+  PaymentApprovalCard as PaymentApprovalCardT,
   Receipt,
   ApprovalCard as ApprovalCardT,
   PravaMandate,
 } from "@/lib/types";
 
 const QUICK_STARTS = [
-  "something for my mom's birthday, under $60, by Friday",
-  "cozy gift for my sister, around $50",
-  "my brother's into coffee and tech, surprise him, max $80",
-  "anniversary gift for my wife, something romantic ~$70",
+  "mum's birthday tomorrow. warm, useful, under ₹2,500",
+  "my sister has had a rough week. something cozy around ₹2,000",
+  "brother is a coffee nerd. keep it below ₹2,200",
+  "anniversary next week. personal, not cheesy, under ₹3,000",
 ];
 
 export default function DemoPage() {
@@ -35,12 +37,13 @@ export default function DemoPage() {
   const [typing, setTyping] = useState(false);
   const [trace, setTrace] = useState<LedgerEntry[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [modes, setModes] = useState<{ prava: string; openai: string; model: string }>();
+  const [modes, setModes] = useState<{ prava: string; pravaEnvironment?: string; openai: string; model: string }>();
   const [spend, setSpend] = useState<{ monthSpent: number; monthlyCap: number }>();
   const [celebrate, setCelebrate] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tab, setTab] = useState<"ledger" | "activity">("ledger");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
 
   const started = messages.length > 1;
   const lastUserIdx = (() => {
@@ -69,7 +72,8 @@ export default function DemoPage() {
 
   async function send(text: string) {
     const clean = text.trim();
-    if (!clean || typing) return;
+    if (!clean || sendingRef.current) return;
+    sendingRef.current = true;
     setInput("");
     const userMsg: ChatMessage = {
       id: "u_" + Math.random().toString(36).slice(2, 8),
@@ -86,6 +90,7 @@ export default function DemoPage() {
         body: JSON.stringify({ text: clean, state }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Request failed");
       setState(data.state);
       const out: ChatMessage[] = data.messages || [];
       for (let i = 0; i < out.length; i++) {
@@ -102,6 +107,7 @@ export default function DemoPage() {
         { id: "err", role: "assistant", text: "Connection hiccup, try again?" },
       ]);
     } finally {
+      sendingRef.current = false;
       setTyping(false);
       refreshTrace();
     }
@@ -119,7 +125,7 @@ export default function DemoPage() {
             <span className="font-display text-xl">Posy</span>
           </Link>
           <div className="flex items-center gap-2">
-            <ModeBadge label="prava" mode={modes?.prava} />
+            <ModeBadge label="prava" mode={modes?.prava} extra={modes?.pravaEnvironment} />
             <ModeBadge label="openai" mode={modes?.openai} extra={modes?.model} />
           </div>
         </div>
@@ -139,7 +145,7 @@ export default function DemoPage() {
                 <Mark className="h-7 w-7" bg="#F0DDCE" />
               </div>
               <div className="mt-1 text-sm font-semibold">Posy</div>
-              <div className="text-[11px] text-black/40">gifting concierge · iMessage</div>
+              <div className="text-[11px] text-black/40">a gifting concierge, not a search box</div>
             </div>
           </div>
 
@@ -150,12 +156,12 @@ export default function DemoPage() {
           >
             {started && (
               <div className="py-1 text-center text-[10px] font-medium uppercase tracking-wide text-black/30">
-                iMessage · Today
+                Posy · Today
               </div>
             )}
             {messages.map((m, i) => (
               <div key={m.id}>
-                <MessageView m={m} onAction={send} />
+                <MessageView m={m} onAction={send} disabled={typing || i < lastUserIdx} />
                 {i === lastUserIdx && (
                   <div className="mt-0.5 pr-1 text-right text-[10px] font-medium text-black/35">
                     {typing || i === messages.length - 1 ? "Delivered" : "Read"}
@@ -185,7 +191,7 @@ export default function DemoPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send(input)}
-              placeholder="Text Posy…"
+              placeholder="Tell Posy what happened…"
               className="flex-1 rounded-full border border-black/10 bg-white px-4 py-2 text-sm outline-none focus:border-imsg-blue"
             />
             <button
@@ -200,7 +206,7 @@ export default function DemoPage() {
         </div>
 
         <p className="mono mt-3 text-center text-[11px] text-muted">
-          every gift paid with a one-time Visa token, issued by Prava
+          live OpenAI reasoning · Prava sandbox payments · demo inventory clearly labelled
         </p>
       </div>
 
@@ -342,8 +348,8 @@ function LedgerView({ receipts, spend }: { receipts: Receipt[]; spend?: { monthS
       <div className="mb-4 rounded-lg border border-line bg-card p-4">
         <div className="mono text-[11px] uppercase tracking-[0.14em] text-muted">spent this month</div>
         <div className="mono mt-1 text-2xl font-medium text-ink">
-          ${spend?.monthSpent ?? 0}
-          <span className="text-sm text-muted"> / ${spend?.monthlyCap ?? 0}</span>
+          {money(spend?.monthSpent ?? 0)}
+          <span className="text-sm text-muted"> / {money(spend?.monthlyCap ?? 0)}</span>
         </div>
       </div>
       {receipts.length === 0 ? (
@@ -359,7 +365,7 @@ function LedgerView({ receipts, spend }: { receipts: Receipt[]; spend?: { monthS
                   to {r.recipient || "someone"} · {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · Visa ···· {r.card.last4}
                 </div>
               </div>
-              <div className="mono shrink-0 text-sm font-medium text-ink">${r.amount}</div>
+              <div className="mono shrink-0 text-sm font-medium text-ink">{money(r.amount)}</div>
             </div>
           ))}
         </div>
@@ -369,14 +375,14 @@ function LedgerView({ receipts, spend }: { receipts: Receipt[]; spend?: { monthS
 }
 
 function ActivityView({ trace }: { trace: LedgerEntry[] }) {
-  if (trace.length === 0) return <Empty>Nothing yet. Text Posy and every step it takes shows up here.</Empty>;
+  if (trace.length === 0) return <Empty>Nothing yet. Ask Posy and every step it takes shows up here.</Empty>;
   return (
     <div>
       {trace.map((e) => (
         <div key={e.id} className="border-l-2 border-claret/25 py-2.5 pl-4">
           <div className="flex items-baseline justify-between gap-2">
             <span className="truncate text-sm font-medium text-ink">{e.title}</span>
-            {e.amount != null && <span className="mono shrink-0 text-xs text-claret">${e.amount.toFixed(2)}</span>}
+            {e.amount != null && <span className="mono shrink-0 text-xs text-claret">{money(e.amount)}</span>}
           </div>
           {e.detail && <p className="mt-0.5 text-xs leading-snug text-muted">{e.detail}</p>}
           <div className="mono mt-1 text-[10px] uppercase tracking-[0.1em] text-muted/60">
@@ -420,10 +426,11 @@ function TypingBubble() {
   );
 }
 
-function MessageView({ m, onAction }: { m: ChatMessage; onAction: (t: string) => void }) {
+function MessageView({ m, onAction, disabled }: { m: ChatMessage; onAction: (t: string) => void; disabled: boolean }) {
   if (m.rich) {
-    if (m.rich.kind === "options") return <OptionsCard data={m.rich.data} />;
-    if (m.rich.kind === "approval") return <ApprovalCard data={m.rich.data} onAction={onAction} />;
+    if (m.rich.kind === "options") return <OptionsCard data={m.rich.data} onAction={onAction} disabled={disabled} />;
+    if (m.rich.kind === "approval") return <ApprovalCard data={m.rich.data} onAction={onAction} disabled={disabled} />;
+    if (m.rich.kind === "payment") return <PaymentApprovalCard data={m.rich.data} onAction={onAction} disabled={disabled} />;
     if (m.rich.kind === "receipt") return <ReceiptCard data={m.rich.data} />;
     if (m.rich.kind === "mandate") return <MandateCard data={m.rich.data} />;
   }
@@ -442,6 +449,52 @@ function MessageView({ m, onAction }: { m: ChatMessage; onAction: (t: string) =>
   );
 }
 
+function PaymentApprovalCard({ data, onAction, disabled }: { data: PaymentApprovalCardT; onAction: (t: string) => void; disabled: boolean }) {
+  const mock = data.mode === "mock";
+  return (
+    <div className="flex justify-start">
+      <div className="w-[86%] animate-bubble-in rounded-2xl rounded-bl-md border border-line bg-card p-3 shadow-soft">
+        <div className="mono mb-1 text-[10px] uppercase tracking-[0.12em] text-claret">Prava secure approval</div>
+        <div className="text-[13px] font-semibold text-ink">{data.product.title}</div>
+        <div className="mt-1 text-[11px] leading-snug text-muted">
+          {mock
+            ? "Mock mode: simulate the approval to continue the offline demo."
+            : "Open Prava, enter the sandbox card, complete OTP and passkey approval, then return here."}
+        </div>
+        <div className="mt-3 flex flex-col gap-2">
+          {!mock && (
+            <a
+              href={data.approvalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-claret py-2 text-center text-[13px] font-semibold text-white transition hover:bg-claret-700"
+            >
+              Open secure Prava checkout ↗
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => onAction(mock ? "payment done" : "I've approved with Prava")}
+            disabled={disabled}
+            className="rounded-lg border border-line py-2 text-[13px] font-medium text-ink hover:bg-paper disabled:cursor-default disabled:opacity-50"
+          >
+            {mock ? "Simulate approval" : "I’ve approved — check status"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction("cancel payment")}
+            disabled={disabled}
+            className="text-[11px] text-muted underline-offset-2 hover:underline disabled:opacity-50"
+          >
+            Cancel payment
+          </button>
+        </div>
+        <p className="mono mt-2 text-center text-[9px] text-muted/70">session {data.sessionId.slice(-10)} · expires {new Date(data.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+      </div>
+    </div>
+  );
+}
+
 function ProductRow({ p, recommended }: { p: GiftProduct; recommended?: boolean }) {
   return (
     <div className={"flex gap-3 rounded-lg border p-2.5 " + (recommended ? "border-claret/30 bg-posy-50" : "border-line bg-card")}>
@@ -451,26 +504,36 @@ function ProductRow({ p, recommended }: { p: GiftProduct; recommended?: boolean 
           <span className="truncate text-[13px] font-semibold text-ink">{p.title}</span>
           {recommended && <span className="mono shrink-0 rounded bg-claret px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white">pick</span>}
         </div>
-        <div className="text-[11px] text-muted">{p.merchant} · ★{p.rating} · {p.deliveryDays}-day</div>
+        <div className="text-[11px] text-muted">{p.source === "demo" ? "demo inventory" : p.merchant} · ★{p.rating} · {p.deliveryDays}-day</div>
       </div>
-      <div className="mono shrink-0 self-center text-[13px] font-medium text-ink">${p.price}</div>
+      <div className="mono shrink-0 self-center text-[13px] font-medium text-ink">{money(p.price)}</div>
     </div>
   );
 }
 
-function OptionsCard({ data }: { data: OptionCard }) {
+function OptionsCard({ data, onAction, disabled }: { data: OptionCard; onAction: (t: string) => void; disabled: boolean }) {
   return (
     <div className="flex justify-start">
       <div className="w-[86%] animate-bubble-in space-y-2 rounded-2xl rounded-bl-md border border-line bg-card p-2.5 shadow-soft">
-        {data.products.map((p) => (
-          <ProductRow key={p.id} p={p} recommended={p.id === data.recommendedId} />
+        {data.products.map((p, index) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onAction(`option ${index + 1}`)}
+            disabled={disabled}
+            className="block w-full rounded-lg text-left transition hover:ring-2 hover:ring-claret/20 disabled:cursor-default disabled:opacity-70 disabled:hover:ring-0"
+            aria-label={`Choose option ${index + 1}: ${p.title}`}
+          >
+            <ProductRow p={p} recommended={p.id === data.recommendedId} />
+          </button>
         ))}
+        <p className="px-1 pt-0.5 text-[10px] text-muted">Tap any option to choose it.</p>
       </div>
     </div>
   );
 }
 
-function ApprovalCard({ data, onAction }: { data: ApprovalCardT; onAction: (t: string) => void }) {
+function ApprovalCard({ data, onAction, disabled }: { data: ApprovalCardT; onAction: (t: string) => void; disabled: boolean }) {
   const blocked = !data.guardrail.allowed;
   return (
     <div className="flex justify-start">
@@ -488,20 +551,22 @@ function ApprovalCard({ data, onAction }: { data: ApprovalCardT; onAction: (t: s
             <span className="text-[13px] text-ink">
               Send <b>{data.product.title}</b>
             </span>
-            <span className="mono text-[13px] font-medium text-ink">${data.amount}</span>
+            <span className="mono text-[13px] font-medium text-ink">{money(data.amount)}</span>
           </div>
         )}
         {!blocked ? (
           <div className="mt-2 flex gap-2">
             <button
               onClick={() => onAction("send it")}
-              className="flex-1 rounded-lg bg-claret py-2 text-[13px] font-semibold text-white transition hover:bg-claret-700 active:scale-[0.98]"
+              disabled={disabled}
+              className="flex-1 rounded-lg bg-claret py-2 text-[13px] font-semibold text-white transition hover:bg-claret-700 active:scale-[0.98] disabled:cursor-default disabled:opacity-50"
             >
               Approve &amp; send
             </button>
             <button
               onClick={() => onAction("not now")}
-              className="rounded-lg border border-line px-3 py-2 text-[13px] font-medium text-muted hover:bg-paper"
+              disabled={disabled}
+              className="rounded-lg border border-line px-3 py-2 text-[13px] font-medium text-muted hover:bg-paper disabled:cursor-default disabled:opacity-50"
             >
               Not now
             </button>
@@ -509,7 +574,8 @@ function ApprovalCard({ data, onAction }: { data: ApprovalCardT; onAction: (t: s
         ) : (
           <button
             onClick={() => onAction("find something cheaper")}
-            className="mt-2 w-full rounded-lg border border-line py-2 text-[13px] font-medium text-ink hover:bg-paper"
+            disabled={disabled}
+            className="mt-2 w-full rounded-lg border border-line py-2 text-[13px] font-medium text-ink hover:bg-paper disabled:cursor-default disabled:opacity-50"
           >
             Find something in budget →
           </button>
@@ -523,12 +589,13 @@ function ApprovalCard({ data, onAction }: { data: ApprovalCardT; onAction: (t: s
 }
 
 function ReceiptCard({ data }: { data: Receipt }) {
+  const sandbox = data.environment === "sandbox" || data.environment === "mock";
   return (
     <div className="flex justify-start">
       <div className="w-[86%] animate-bubble-in overflow-hidden rounded-2xl rounded-bl-md border border-line bg-card shadow-soft">
         <div className="flex items-center justify-between bg-claret px-4 py-2.5 text-white">
           <span className="flex items-center gap-1.5 text-[13px] font-semibold">
-            <Mark className="h-3.5 w-3.5" color="#F4EEE1" bg="#8E2C3F" /> Gift sent
+            <Mark className="h-3.5 w-3.5" color="#F4EEE1" bg="#8E2C3F" /> {sandbox ? "Sandbox checkout" : "Gift sent"}
           </span>
           <span className="mono text-[11px] opacity-90">{data.orderRef}</span>
         </div>
@@ -536,12 +603,12 @@ function ReceiptCard({ data }: { data: Receipt }) {
           <ProductRow p={data.product} />
           <div className="grid grid-cols-2 gap-2 text-[12px]">
             <Info k="recipient" v={data.recipient || "someone"} />
-            <Info k="arrives" v={data.eta} />
+            <Info k={sandbox ? "demo ETA" : "arrives"} v={data.eta} />
             <Info k="paid with" v={`Visa ···· ${data.card.last4}`} mono />
-            <Info k="total" v={`$${data.amount}`} mono />
+            <Info k="total" v={money(data.amount)} mono />
           </div>
           <div className="rounded-lg px-3 py-2 text-[11px] leading-snug text-stem" style={{ background: "#E7EFE7" }}>
-            One-time Visa token. The merchant never sees a reusable card number.
+            {sandbox ? "Prava sandbox authorization—no real money moved and no retail order was placed." : "One-time Visa token. The merchant never sees a reusable card number."}
             Full record in{" "}
             <Link href="/dashboard" className="underline">the ledger</Link>.
           </div>
@@ -558,7 +625,7 @@ function MandateCard({ data }: { data: PravaMandate }) {
         <div className="mono mb-1 text-[10px] uppercase tracking-[0.12em] text-claret">recurring gift set</div>
         <div className="text-[13px] font-medium text-ink">{data.label}</div>
         <div className="mono mt-1.5 grid grid-cols-2 gap-1.5 text-[11px] text-muted">
-          <span>cap ${data.cap}/charge</span>
+          <span>cap {money(data.cap)}/charge</span>
           <span>{data.recurring_frequency}</span>
           <span>scope: {data.merchant_scope}</span>
           <span>max {data.max_charges} charges</span>

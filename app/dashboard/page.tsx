@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Mark, Swatch } from "@/components/Mark";
 import { Guardrails, LedgerEntry, PravaMandate, Receipt } from "@/lib/types";
+import { money } from "@/lib/money";
 
 interface StateResp {
   guardrails: Guardrails;
@@ -70,7 +71,7 @@ export default function Dashboard() {
               Reset
             </button>
             <Link href="/demo" className="rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-paper hover:bg-black">
-              Text Posy →
+              Ask Posy →
             </Link>
           </div>
         </div>
@@ -80,7 +81,7 @@ export default function Dashboard() {
         <header className="mb-8">
           <h1 className="font-display text-3xl">How the money works</h1>
           <p className="mt-1 max-w-xl text-muted">
-            Every rule Posy follows and every dollar it&apos;s moved, in plain sight.
+            Every rule Posy follows and every sandbox rupee it has touched, in plain sight.
           </p>
         </header>
 
@@ -88,11 +89,11 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <Label>spent this month</Label>
-            <div className="mono mt-1 text-3xl font-medium text-ink">${d.monthSpent}</div>
+            <div className="mono mt-1 text-3xl font-medium text-ink">{money(d.monthSpent)}</div>
             <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-line">
               <div className="h-full rounded-full bg-claret transition-all" style={{ width: `${pct}%` }} />
             </div>
-            <div className="mono mt-1.5 text-[11px] text-muted">of ${d.guardrails.monthlyCap} you allowed</div>
+            <div className="mono mt-1.5 text-[11px] text-muted">of {money(d.guardrails.monthlyCap)} you allowed</div>
           </Card>
           <Card>
             <Label>gifts sent</Label>
@@ -116,9 +117,9 @@ export default function Dashboard() {
                 on the very next gift.
               </p>
               <div className="space-y-4">
-                <Slider label="most per gift" value={d.guardrails.perGiftCap} min={20} max={300} step={5} onChange={(v) => saveGuardrail({ perGiftCap: v })} />
-                <Slider label="most per month" value={d.guardrails.monthlyCap} min={100} max={2000} step={50} onChange={(v) => saveGuardrail({ monthlyCap: v })} />
-                <Slider label="ask me above" value={d.guardrails.requireApprovalOver} min={0} max={200} step={5} onChange={(v) => saveGuardrail({ requireApprovalOver: v })} />
+                <Slider label="most per gift" value={d.guardrails.perGiftCap} min={500} max={10000} step={250} onChange={(v) => saveGuardrail({ perGiftCap: v })} />
+                <Slider label="most per month" value={d.guardrails.monthlyCap} min={2500} max={50000} step={500} onChange={(v) => saveGuardrail({ monthlyCap: v })} />
+                <Slider label="ask me above" value={d.guardrails.requireApprovalOver} min={0} max={7500} step={250} onChange={(v) => saveGuardrail({ requireApprovalOver: v })} />
               </div>
               <p className="mt-3 text-xs text-muted">
                 Anything over that last line, Posy stops and asks you first, right
@@ -140,7 +141,7 @@ export default function Dashboard() {
                       <div>
                         <div className="text-sm font-semibold text-ink">{m.label}</div>
                         <div className="mono mt-0.5 text-[11px] text-muted">
-                          {m.merchant} · ${m.cap}/charge · {m.recurring_frequency} · {m.charges_used}/{m.max_charges} used
+                          {m.merchant} · {money(m.cap)}/charge · {m.recurring_frequency} · {m.charges_used}/{m.max_charges} used
                         </div>
                       </div>
                       <StatusPill status={m.status} />
@@ -178,7 +179,7 @@ export default function Dashboard() {
                       </div>
                       <div className="mono text-[11px] text-muted">{r.merchant} · {r.orderRef} · Visa ···· {r.card.last4}</div>
                     </div>
-                    <div className="mono text-sm font-medium text-ink">${r.amount}</div>
+                    <div className="mono text-sm font-medium text-ink">{money(r.amount)}</div>
                   </div>
                 ))}
               </div>
@@ -199,7 +200,7 @@ export default function Dashboard() {
                 <div key={e.id} className="border-l-2 border-claret/25 py-2.5 pl-4">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="truncate text-sm font-medium text-ink">{e.title}</span>
-                    {e.amount != null && <span className="mono shrink-0 text-xs text-claret">${e.amount.toFixed(2)}</span>}
+                    {e.amount != null && <span className="mono shrink-0 text-xs text-claret">{money(e.amount)}</span>}
                   </div>
                   {e.detail && <p className="mt-0.5 text-xs leading-snug text-muted">{e.detail}</p>}
                   <div className="mono mt-1 text-[10px] uppercase tracking-[0.1em] text-muted/60">
@@ -253,7 +254,7 @@ function Slider({ label, value, min, max, step, onChange }: { label: string; val
     <div>
       <div className="mb-1 flex items-baseline justify-between text-sm">
         <span className="text-muted">{label}</span>
-        <span className="mono font-medium text-ink">${value}</span>
+        <span className="mono font-medium text-ink">{money(value)}</span>
       </div>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseInt(e.target.value, 10))} className="w-full accent-claret" />
     </div>

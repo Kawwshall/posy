@@ -23,9 +23,22 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Posy · the friend with good taste who never forgets a birthday",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://posy.getcontios.com"),
+  title: "Posy · gifting, minus the twenty open tabs",
   description:
-    "You meant to send something. Posy actually does. Text one line; a gifting concierge finds the right thing and puts it in the mail, paid with a one-time card, never your real one.",
+    "Tell Posy who, why, and what you can spend. It recommends thoughtfully, checks your limits, and asks before money moves.",
+  openGraph: {
+    title: "Posy · the friend who is weirdly good at gifts",
+    description: "Human gifting advice, explicit approval, and single-use payments via Prava.",
+    type: "website",
+    images: [{ url: "/og.png", width: 1731, height: 909, alt: "Posy — gifting, minus the twenty open tabs" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Posy · the friend who is weirdly good at gifts",
+    description: "Human gifting advice, explicit approval, and single-use payments via Prava.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({

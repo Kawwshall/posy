@@ -1,6 +1,6 @@
-import { Guardrails, LedgerEntry, PravaMandate, Receipt } from "./types";
+import { Guardrails, LedgerEntry, PendingPayment, PravaMandate, Receipt } from "./types";
 
-// Simple in-memory store for the demo. One shared "account" so the texting
+// Simple in-memory store for the demo. One shared "account" so the conversation
 // demo and the trust dashboard stay in sync in a single running instance.
 // (In production this is a per-user DB row.)
 
@@ -9,6 +9,7 @@ interface DB {
   ledger: LedgerEntry[];
   mandates: PravaMandate[];
   receipts: Receipt[];
+  pendingPayments: Record<string, PendingPayment>;
   monthSpent: number;
 }
 
@@ -20,9 +21,9 @@ declare global {
 function seed(): DB {
   return {
     guardrails: {
-      perGiftCap: 150,
-      monthlyCap: 500,
-      requireApprovalOver: 75,
+      perGiftCap: 5000,
+      monthlyCap: 15000,
+      requireApprovalOver: 2500,
       blockedCategories: ["alcohol-restricted", "gift-cards"],
     },
     ledger: [
@@ -36,6 +37,7 @@ function seed(): DB {
     ],
     mandates: [],
     receipts: [],
+    pendingPayments: {},
     monthSpent: 0,
   };
 }

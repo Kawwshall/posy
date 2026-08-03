@@ -20,7 +20,7 @@ export function Nav() {
             href="/demo"
             className="ml-1 rounded-lg bg-ink px-4 py-2 text-[15px] font-medium text-paper transition hover:bg-black"
           >
-            Text Posy
+            Ask Posy
           </Link>
         </nav>
       </div>

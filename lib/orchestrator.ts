@@ -1,11 +1,14 @@
-import { curate, etaFor } from "./agent";
+import { curate, etaFor, scoreProducts } from "./agent";
 import { findProduct } from "./catalog";
 import { checkGuardrails } from "./guardrails";
 import {
   createMandate,
   createSession,
   getPaymentResult,
+  pravaEnvironment,
   pravaMode,
+  reportPaymentStatus,
+  revokeSession,
 } from "./prava";
 import { db, log } from "./store";
 import {
@@ -13,8 +16,10 @@ import {
   ChatMessage,
   GiftProduct,
   OptionCard,
+  PaymentApprovalCard,
   Receipt,
 } from "./types";
+import { money } from "./money";
 
 const DEMO_USER = { id: "user_demo_posy", email: "you@posy.gift" };
 
@@ -25,6 +30,7 @@ function msg(m: Omit<ChatMessage, "id">): ChatMessage {
 const AFFIRM = /\b(yes|yep|yeah|yup|sure|ok|okay|do it|send it|send|go|confirm|confirmed|please do|buy it|purchase|👍|✅)\b/i;
 const DECLINE = /\b(no|nope|nah|cancel|stop|wait|don'?t|not now)\b/i;
 const RECURRING = /\b(every year|each year|annually|recurring|remember|never miss|every birthday|every month|monthly)\b/i;
+const CHECK_PAYMENT = /\b(i('| a)?ve approved|approved with prava|check payment|check status|continue checkout|payment done)\b/i;
 
 function resolveSelection(text: string, opts: OptionCard): string | undefined {
   const t = text.toLowerCase();
@@ -41,14 +47,28 @@ function resolveSelection(text: string, opts: OptionCard): string | undefined {
   return undefined;
 }
 
-// The core purchase execution: guardrails -> Prava session -> one-time Visa
-// network token -> checkout -> receipt. Every step is written to the audit
-// ledger so the trust dashboard reflects exactly what the agent did.
-async function executePurchase(
+function firstAllowedProduct(options: OptionCard): GiftProduct | undefined {
+  return scoreProducts(options.brief).find(
+    (product) => checkGuardrails(product, options.brief.budget).allowed
+  );
+}
+
+function paymentCard(payment: ReturnType<typeof db>["pendingPayments"][string], product: GiftProduct): ChatMessage {
+  const data: PaymentApprovalCard = {
+    sessionId: payment.sessionId,
+    product,
+    approvalUrl: payment.approvalUrl,
+    expiresAt: payment.expiresAt,
+    status: payment.status,
+    mode: payment.mode,
+  };
+  return msg({ role: "assistant", rich: { kind: "payment", data } });
+}
+
+async function beginPurchase(
   product: GiftProduct,
   brief: OptionCard["brief"],
-  giftMessage?: string
-): Promise<ChatMessage> {
+): Promise<{ message: ChatMessage; sessionId?: string }> {
   const decision = checkGuardrails(product, brief.budget);
   log({
     kind: "guardrail_check",
@@ -60,10 +80,12 @@ async function executePurchase(
 
   if (!decision.allowed) {
     log({ kind: "declined", title: "Purchase blocked by guardrails", detail: decision.reasons.join(" "), amount: product.price });
-    return msg({
-      role: "assistant",
-      text: `I held off. ${decision.reasons.join(" ")} Want me to find something within budget instead?`,
-    });
+    return {
+      message: msg({
+        role: "assistant",
+        text: `I held off. ${decision.reasons.join(" ")} Want me to find something within budget instead?`,
+      }),
+    };
   }
 
   // 1. Create a merchant- & amount-scoped Prava session.
@@ -75,28 +97,85 @@ async function executePurchase(
   log({
     kind: "session_created",
     title: `Prava session opened (${session.mode})`,
-    detail: `${product.merchant} · $${product.price} · scoped to this one purchase`,
+    detail: `${product.merchant} · ${money(product.price)} · scoped to this one purchase`,
     amount: product.price,
     meta: { session_id: session.session_id, order_id: session.order_id },
   });
 
-  // 2. Retrieve the single-use tokenized credential (Visa network token).
-  const cred = await getPaymentResult(session.session_id);
+  db().pendingPayments[session.session_id] = {
+    sessionId: session.session_id,
+    orderId: session.order_id,
+    productId: product.id,
+    approvalUrl: session.iframe_url,
+    expiresAt: session.expires_at,
+    brief,
+    status: "pending",
+    mode: session.mode,
+  };
+
+  log({
+    kind: "approval_requested",
+    title: "Prava approval required",
+    detail: `${product.title} · secure card entry and passkey approval`,
+    amount: product.price,
+  });
+
+  return {
+    message: paymentCard(db().pendingPayments[session.session_id], product),
+    sessionId: session.session_id,
+  };
+}
+
+async function finalizePurchase(sessionId: string, giftMessage?: string): Promise<ChatMessage[]> {
+  const payment = db().pendingPayments[sessionId];
+  if (!payment) {
+    return [msg({ role: "assistant", text: "That payment session is no longer active. Please choose the gift again." })];
+  }
+  const product = findProduct(payment.productId);
+  if (!product) {
+    delete db().pendingPayments[sessionId];
+    return [msg({ role: "assistant", text: "That product is no longer available. I can find a fresh option." })];
+  }
+
+  const result = await getPaymentResult(sessionId);
+  payment.status = result.status;
+  if (result.status === "pending" || result.status === "processing") {
+    return [
+      msg({ role: "assistant", text: "Prava is still waiting for secure card entry and passkey approval. Finish that window, then tap check again." }),
+      paymentCard(payment, product),
+    ];
+  }
+  if (result.status === "failed") {
+    delete db().pendingPayments[sessionId];
+    log({ kind: "declined", title: "Prava authorization failed", detail: result.error?.message || "Payment authorization was declined.", amount: product.price });
+    return [msg({ role: "assistant", text: "Prava could not authorize that sandbox payment. Nothing was ordered or charged." })];
+  }
+  if (result.status !== "awaiting_result" || !result.credentials || !result.txnRefId) {
+    return [msg({ role: "assistant", text: "Prava has not issued a usable sandbox credential yet. Please check the approval window and try again." })];
+  }
+
+  if (pravaEnvironment === "production") {
+    throw new Error("Production merchant checkout is not enabled. The credential was not used or reported as charged.");
+  }
+
+  // In Prava sandbox, reporting APPROVED is the documented merchant-execution
+  // simulator. No retail order or real-money charge is created here.
+  await reportPaymentStatus(sessionId, result.txnRefId, true, product.price, product.id);
+  const cred = result.credentials;
   log({
     kind: "card_issued",
-    title: "One-time Visa network token issued",
-    detail: `${cred.brand} •••• ${cred.last4} · single-use · CVV rotates per charge`,
+    title: "One-time Visa sandbox credential issued",
+    detail: `${cred.brand} •••• ${cred.last4} · never exposed to the browser`,
     amount: product.price,
     meta: { last4: cred.last4 },
   });
 
-  // 3. Complete checkout at the merchant with the token, then record it.
-  const orderRef = "PSY-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  const orderRef = "SBX-" + payment.orderId.slice(-8).toUpperCase();
   db().monthSpent += product.price;
   log({
     kind: "charged",
-    title: `Charged $${product.price} at ${product.merchant}`,
-    detail: `Order ${orderRef} · paid with ${cred.brand} •••• ${cred.last4}`,
+    title: `Sandbox checkout approved · ${money(product.price)}`,
+    detail: `${product.merchant} · ${orderRef} · no real-money charge`,
     amount: product.price,
   });
 
@@ -104,18 +183,23 @@ async function executePurchase(
     id: "rcpt_" + Math.random().toString(36).slice(2, 10),
     product,
     amount: product.price,
-    card: { brand: cred.brand, last4: cred.last4, network_token: cred.token },
+    card: { brand: cred.brand, last4: cred.last4 },
     merchant: product.merchant,
     orderRef,
     giftMessage,
-    recipient: brief.recipient,
+    recipient: payment.brief.recipient,
     eta: etaFor(product.deliveryDays),
     createdAt: new Date().toISOString(),
+    environment: pravaEnvironment,
   };
   db().receipts.unshift(receipt);
-  log({ kind: "receipt", title: `Gift on the way to ${brief.recipient || "your recipient"}`, detail: `${product.title} · arrives ${receipt.eta}`, amount: product.price, meta: { receipt_id: receipt.id } });
+  delete db().pendingPayments[sessionId];
+  log({ kind: "receipt", title: "Prava sandbox checkout completed", detail: `${product.title} · sandbox result reported`, amount: product.price, meta: { receipt_id: receipt.id } });
 
-  return msg({ role: "assistant", rich: { kind: "receipt", data: receipt } });
+  return [
+    msg({ role: "assistant", rich: { kind: "receipt", data: receipt } }),
+    msg({ role: "assistant", text: "Sandbox purchase complete. No real money moved and no retail order was placed." }),
+  ];
 }
 
 export async function runTurn(
@@ -126,6 +210,29 @@ export async function runTurn(
   const next: AgentState = { ...state, brief: { ...state.brief } };
 
   try {
+    if (next.pendingPaymentId) {
+      const pending = db().pendingPayments[next.pendingPaymentId];
+      if (!pending) {
+        next.pendingPaymentId = undefined;
+      } else if (DECLINE.test(text) && !AFFIRM.test(text)) {
+        await revokeSession(next.pendingPaymentId);
+        delete db().pendingPayments[next.pendingPaymentId];
+        next.pendingPaymentId = undefined;
+        messages.push(msg({ role: "assistant", text: "Payment cancelled. The Prava session was revoked and nothing was charged." }));
+        return { messages, state: next };
+      } else if (CHECK_PAYMENT.test(text) || AFFIRM.test(text)) {
+        const finalized = await finalizePurchase(next.pendingPaymentId);
+        messages.push(...finalized);
+        if (!db().pendingPayments[next.pendingPaymentId]) next.pendingPaymentId = undefined;
+        return { messages, state: next };
+      } else {
+        const product = findProduct(pending.productId);
+        messages.push(msg({ role: "assistant", text: "Finish the secure Prava approval first, or say cancel." }));
+        if (product) messages.push(paymentCard(pending, product));
+        return { messages, state: next };
+      }
+    }
+
     // --- Recurring / mandate intent (only meaningful once we've picked something) ---
     if (RECURRING.test(text) && (next.awaitingApprovalFor || next.lastOptions)) {
       const pid = next.awaitingApprovalFor || next.lastOptions?.recommendedId;
@@ -142,8 +249,8 @@ export async function runTurn(
           maxCharges: /month/i.test(text) ? 12 : 5,
         });
         db().mandates.unshift(mandate);
-        log({ kind: "mandate_created", title: `Recurring gift set · ${label}`, detail: `Scope: ${mandate.merchant} · cap $${mandate.cap}/charge · ${mandate.max_charges} charges max · pausable anytime`, amount: mandate.cap, meta: { mandate_id: mandate.id } });
-        messages.push(msg({ role: "assistant", text: `Done. I'll handle it ${mandate.recurring_frequency === "yearly" ? "every year" : "every month"}, capped at $${mandate.cap}, and you can call it off anytime.` }));
+        log({ kind: "mandate_created", title: `Recurring gift set · ${label}`, detail: `Scope: ${mandate.merchant} · cap ${money(mandate.cap)}/charge · ${mandate.max_charges} charges max · pausable anytime`, amount: mandate.cap, meta: { mandate_id: mandate.id } });
+        messages.push(msg({ role: "assistant", text: `Done. I'll handle it ${mandate.recurring_frequency === "yearly" ? "every year" : "every month"}, capped at ${money(mandate.cap)}, and you can call it off anytime.` }));
         messages.push(msg({ role: "assistant", rich: { kind: "mandate", data: mandate } }));
         return { messages, state: next };
       }
@@ -160,14 +267,17 @@ export async function runTurn(
       const affirm = AFFIRM.test(text);
       if (selected || affirm) {
         const targetId = selected || next.awaitingApprovalFor;
-        const product = findProduct(targetId)!;
-        log({ kind: "approved", title: `You approved: ${product.title}`, detail: `$${product.price} · passkey-confirmed`, amount: product.price });
-        const receiptMsg = await executePurchase(product, next.lastOptions.brief);
-        messages.push(receiptMsg);
-        next.awaitingApprovalFor = undefined;
-        if (receiptMsg.rich?.kind === "receipt") {
-          messages.push(msg({ role: "assistant", text: `Sent. Want me to remember this one, so you never have to think about it again?` }));
+        const product = findProduct(targetId);
+        if (!product) {
+          next.awaitingApprovalFor = undefined;
+          messages.push(msg({ role: "assistant", text: "That option is no longer available. I can find a fresh set for you." }));
+          return { messages, state: next };
         }
+        log({ kind: "approved", title: `Checkout selected: ${product.title}`, detail: `${money(product.price)} · Prava approval still required`, amount: product.price });
+        const started = await beginPurchase(product, next.lastOptions.brief);
+        messages.push(started.message);
+        next.awaitingApprovalFor = undefined;
+        next.pendingPaymentId = started.sessionId;
         return { messages, state: next };
       }
       // Otherwise fall through and treat as a refined brief.
@@ -179,9 +289,43 @@ export async function runTurn(
     next.brief = options.brief;
     next.lastOptions = options;
 
-    log({ kind: "search", title: "Searched merchant network", detail: `${options.products.length} strong matches across ${new Set(options.products.map((p) => p.merchant)).size} merchants` });
+    log({ kind: "search", title: "Ranked demo inventory", detail: `${options.products.length} matches considered. Live merchant inventory is not connected in this build.` });
 
-    const rec = findProduct(options.recommendedId)!;
+    const allowedProduct = firstAllowedProduct(options);
+    const originalRecommendation = findProduct(options.recommendedId);
+    if (!originalRecommendation) {
+      messages.push(msg({
+        role: "assistant",
+        text: "I couldn't find an available gift that matches those details. Try a different interest, deadline, or budget.",
+      }));
+      next.awaitingApprovalFor = undefined;
+      return { messages, state: next };
+    }
+
+    if (!allowedProduct) {
+      const blocked = checkGuardrails(originalRecommendation, options.brief.budget);
+      log({ kind: "curation", title: "No purchasable match", detail: blocked.reasons.join(" "), amount: originalRecommendation.price });
+      log({ kind: "declined", title: "Recommendation held by guardrails", detail: blocked.reasons.join(" "), amount: originalRecommendation.price });
+      messages.push(msg({
+        role: "assistant",
+        text: `I held off because I couldn't find a catalog match inside all your limits. ${blocked.reasons.join(" ")} Raise the budget or account ceiling and I'll try again.`,
+      }));
+      next.awaitingApprovalFor = undefined;
+      return { messages, state: next };
+    }
+
+    const rec = allowedProduct;
+
+    // The model may prefer a product that the account policy blocks. Keep its
+    // shortlist, but move the first actually purchasable option into the pick.
+    if (options.recommendedId !== allowedProduct.id) {
+      options.recommendedId = allowedProduct.id;
+      options.reasoning = `I found a close match that also stays inside your account limits: ${allowedProduct.title.toLowerCase()} for ${money(allowedProduct.price)}.`;
+    }
+    if (!options.products.some((product) => product.id === allowedProduct.id)) {
+      options.products = [allowedProduct, ...options.products].slice(0, 3);
+    }
+    next.lastOptions = options;
     const decision = checkGuardrails(rec, options.brief.budget);
     log({ kind: "curation", title: `Recommended: ${rec.title}`, detail: options.reasoning, amount: rec.price });
 
@@ -204,13 +348,15 @@ export async function runTurn(
 
     if (decision.allowed) {
       next.awaitingApprovalFor = rec.id;
-      log({ kind: "approval_requested", title: "Awaiting your approval", detail: `${rec.title} · $${rec.price}`, amount: rec.price });
+      log({ kind: "approval_requested", title: "Awaiting your approval", detail: `${rec.title} · ${money(rec.price)}`, amount: rec.price });
+    } else {
+      next.awaitingApprovalFor = undefined;
     }
 
     return { messages, state: next };
   } catch (e: any) {
     log({ kind: "error", title: "Agent error", detail: String(e?.message || e) });
-    messages.push(msg({ role: "assistant", text: `Hmm, I hit a snag: ${String(e?.message || e)}. Mind trying that again?` }));
+    messages.push(msg({ role: "assistant", text: "The secure checkout hit a temporary problem. Nothing was charged. Please try again or cancel this payment." }));
     return { messages, state: next };
   }
 }

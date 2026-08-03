@@ -2,6 +2,7 @@ import {
   GiftProduct,
   PravaCredentials,
   PravaMandate,
+  PravaPaymentResult,
   PravaSession,
 } from "./types";
 
@@ -21,6 +22,8 @@ const BASE =
 export const pravaMode: "live" | "mock" = SECRET.startsWith("sk_")
   ? "live"
   : "mock";
+export const pravaEnvironment: "mock" | "sandbox" | "production" =
+  pravaMode === "mock" ? "mock" : BASE.includes("sandbox") ? "sandbox" : "production";
 
 // Documented sandbox test card (docs.prava.space/api-reference/test-cards).
 const TEST_CARD = {
@@ -37,6 +40,8 @@ function rid(prefix: string) {
 }
 
 async function pravaFetch(path: string, init: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
   const res = await fetch(BASE + path, {
     ...init,
     headers: {
@@ -44,7 +49,8 @@ async function pravaFetch(path: string, init: RequestInit) {
       "Content-Type": "application/json",
       ...(init.headers || {}),
     },
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
   const text = await res.text();
   let body: any = {};
   try {
@@ -55,8 +61,8 @@ async function pravaFetch(path: string, init: RequestInit) {
   if (!res.ok) {
     const ridHeader = res.headers.get("X-Response-ID") || "";
     throw new Error(
-      `Prava ${path} ${res.status}: ${body.code || ""} ${
-        body.message || text
+      `Prava ${path} ${res.status}: ${body.error?.code || body.code || ""} ${
+        body.error?.message || body.message || "Request failed"
       } ${ridHeader ? `(ref ${ridHeader})` : ""}`
     );
   }
@@ -88,19 +94,22 @@ export async function createSession(
     };
   }
 
+  const callbackUrl = process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://")
+    ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/demo?prava=return`
+    : undefined;
   const body = await pravaFetch("/v1/sessions", {
     method: "POST",
     body: JSON.stringify({
       user_id: args.userId,
       user_email: args.userEmail,
       total_amount: total,
-      currency: "USD",
+      currency: "INR",
       purchase_context: [
         {
           merchant_details: {
             name: args.product.merchant,
             url: args.product.merchantUrl,
-            country_code_iso2: "US",
+            country_code_iso2: "IN",
             category: args.product.category,
           },
           product_details: [
@@ -114,6 +123,7 @@ export async function createSession(
         },
       ],
       integration_type: "full_checkout",
+      ...(callbackUrl ? { callback_url: callbackUrl } : {}),
       description: `Posy gift: ${args.product.title}`,
     }),
   });
@@ -124,30 +134,75 @@ export async function createSession(
 // GET /v1/sessions/{id}/payment-result · returns single-use tokenized
 // credentials once the user has approved (passkey). In mock mode we return
 // the documented sandbox test card immediately.
-export async function getPaymentResult(
-  sessionId: string
-): Promise<PravaCredentials> {
+export async function getPaymentResult(sessionId: string): Promise<PravaPaymentResult> {
   if (pravaMode === "mock") {
-    return { ...TEST_CARD };
+    return { status: "awaiting_result", txnRefId: rid("tli"), credentials: { ...TEST_CARD } };
   }
 
   const body = await pravaFetch(`/v1/sessions/${sessionId}/payment-result`, {
     method: "GET",
   });
 
-  // Dig the credential out of the transactions array per the API schema.
+  const status = String(body.status || "pending") as PravaPaymentResult["status"];
   const tx = (body.transactions || [])[0] || {};
   const line = (tx.line_items || tx.lineItems || [tx])[0] || {};
-  const cred = line.credentials || line || {};
-  const token = cred.token || TEST_CARD.token;
+  const cred = line.credentials || line;
+  const token = cred.token || cred.network_token || cred.networkToken;
+  if (status !== "awaiting_result" || !token) {
+    return {
+      status,
+      txnRefId: line.txn_ref_id || line.txnRefId,
+      error: line.error || tx.error || body.error,
+    };
+  }
   return {
-    token,
-    dynamic_cvv: cred.dynamic_cvv || cred.dynamicCvv || TEST_CARD.dynamic_cvv,
-    expiry_month: cred.expiry_month || cred.expiryMonth || TEST_CARD.expiry_month,
-    expiry_year: cred.expiry_year || cred.expiryYear || TEST_CARD.expiry_year,
-    brand: "Visa",
-    last4: String(token).slice(-4),
+    status,
+    txnRefId: line.txn_ref_id || line.txnRefId,
+    credentials: {
+      token,
+      dynamic_cvv: cred.dynamic_cvv || cred.dynamicCvv || "",
+      expiry_month: cred.expiry_month || cred.expiryMonth || "",
+      expiry_year: cred.expiry_year || cred.expiryYear || "",
+      brand: cred.brand || "Visa",
+      last4: String(token).slice(-4),
+    },
   };
+}
+
+export async function reportPaymentStatus(
+  sessionId: string,
+  txnRefId: string,
+  approved: boolean,
+  amount: number,
+  productId: string
+) {
+  if (pravaMode === "mock") return { status: "confirmed", visa_confirmation: "SUCCESS" };
+  return pravaFetch(`/v1/sessions/${sessionId}/report-status`, {
+    method: "POST",
+    body: JSON.stringify({
+      txn_ref_id: txnRefId,
+      txn_status: approved ? "APPROVED" : "DECLINED",
+      txn_type: "PURCHASE",
+      authorization_code: approved ? "POSY-SANDBOX" : undefined,
+      response_code: approved ? "00" : "05",
+      amount_paid: amount.toFixed(2),
+      product_statuses: [
+        {
+          product_id: productId,
+          status: approved ? "COMPLETED" : "FAILED",
+          amount_paid: approved ? amount.toFixed(2) : "0.00",
+        },
+      ],
+    }),
+  });
+}
+
+export async function revokeSession(sessionId: string) {
+  if (pravaMode === "mock") return { status: "revoked" };
+  return pravaFetch(`/v1/sessions/${sessionId}/revoke`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
 }
 
 // Set up a recurring mandate ("never miss a birthday"). Uses the
@@ -185,13 +240,13 @@ export async function createMandate(args: {
       user_id: args.userId,
       user_email: args.userEmail,
       total_amount: args.cap.toFixed(2),
-      currency: "USD",
+      currency: "INR",
       purchase_context: [
         {
           merchant_details: {
             name: args.product.merchant,
             url: args.product.merchantUrl,
-            country_code_iso2: "US",
+            country_code_iso2: "IN",
           },
           product_details: [
             { description: args.label, unit_price: args.cap.toFixed(2) },
@@ -222,12 +277,16 @@ export async function chargeMandate(
     body: JSON.stringify({ amount: amount.toFixed(2) }),
   });
   const cred = body.credentials || {};
+  const token = cred.token || cred.network_token || cred.networkToken;
+  if (!token) {
+    throw new Error("Prava did not return a payment credential for this mandate charge.");
+  }
   return {
-    token: cred.token || TEST_CARD.token,
-    dynamic_cvv: cred.dynamicCvv || TEST_CARD.dynamic_cvv,
-    expiry_month: cred.expiryMonth || TEST_CARD.expiry_month,
-    expiry_year: cred.expiryYear || TEST_CARD.expiry_year,
-    brand: "Visa",
-    last4: String(cred.token || TEST_CARD.token).slice(-4),
+    token,
+    dynamic_cvv: cred.dynamic_cvv || cred.dynamicCvv || "",
+    expiry_month: cred.expiry_month || cred.expiryMonth || "",
+    expiry_year: cred.expiry_year || cred.expiryYear || "",
+    brand: cred.brand || "Visa",
+    last4: String(token).slice(-4),
   };
 }

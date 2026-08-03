@@ -1,6 +1,7 @@
 import { CATALOG } from "./catalog";
 import { chatJSON, openaiMode } from "./openai";
 import { GiftBrief, GiftProduct, OptionCard } from "./types";
+import { money } from "./money";
 
 // ---------------------------------------------------------------------------
 // The gifting agent. Two responsibilities:
@@ -53,11 +54,15 @@ export function heuristicBrief(text: string, prev: GiftBrief): GiftBrief {
   const t = text.toLowerCase();
   const brief: GiftBrief = { ...prev };
 
-  // budget: "$60", "under 60", "around 50", "50 dollars", "50 bucks"
+  // budget: "₹2500", "under 2500", "2.5k", "2500 rupees"
   const budget =
-    num(t, /\$\s*(\d{1,4})/) ??
-    num(t, /(?:under|below|max|upto|up to|around|about|~)\s*\$?\s*(\d{1,4})/) ??
-    num(t, /(\d{1,4})\s*(?:dollars|bucks|usd)/);
+    num(t, /₹\s*(\d{2,6})/) ??
+    num(t, /(?:under|below|max|upto|up to|around|about|~)\s*₹?\s*(\d{2,6})/) ??
+    num(t, /(\d{2,6})\s*(?:rupees|inr|rs\.?)/) ??
+    (() => {
+      const m = t.match(/(?:under|below|max|around|about|~)?\s*(\d+(?:\.\d+)?)\s*k\b/);
+      return m ? Math.round(Number(m[1]) * 1000) : undefined;
+    })();
   if (budget) brief.budget = budget;
 
   // relationship / recipient
@@ -131,7 +136,7 @@ function feasibilityNote(brief: GiftBrief, top: GiftProduct[]): string {
   const rec = top[0];
   const who = brief.recipient ? `your ${brief.recipient}` : "them";
   const occ = brief.occasion || "gift";
-  const cap = brief.budget ? `, keeping it under $${brief.budget}` : "";
+  const cap = brief.budget ? `, keeping it under ${money(brief.budget)}` : "";
   const why = rec.description.split(".")[0].toLowerCase();
   return `For ${who}'s ${occ}${cap}, I'd send the ${rec.title.toLowerCase()}. ${why.charAt(0).toUpperCase()}${why.slice(1)}. A couple of other ideas below if you want options.`;
 }
@@ -168,8 +173,9 @@ export async function curate(
     }));
 
     const system = `You are Posy, a warm, tasteful gifting concierge that texts like a thoughtful friend.
-You help people pick and send the perfect gift. Be concise (2-3 sentences), never pushy, never salesy.
+You help people pick and send the perfect gift in India. Be concise (2-3 sentences), never pushy, never salesy.
 You MUST only pick products from the provided candidates. Respect the stated budget as a hard cap.
+Use ₹ for money. Sound like a perceptive human friend: specific, warm, a little imperfect. Never claim a demo catalog item is live merchant inventory.
 Return STRICT JSON with keys:
 {
   "brief": {"recipient","relationship","occasion","budget"(number),"interests"(string[]),"deadlineDays"(number),"notes"},
@@ -215,5 +221,5 @@ Candidate gifts (only choose from these): ${JSON.stringify(catalogForModel)}`;
 
 export function etaFor(days: number): string {
   const d = new Date(Date.now() + days * 24 * 3600_000);
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-IN", { weekday: "long", month: "short", day: "numeric" });
 }
