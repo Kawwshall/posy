@@ -12,8 +12,58 @@ import { money } from "./money";
 const BASE = process.env.LINQ_BASE_URL || "https://api.linqapp.com/api/partner/v3";
 const TOKEN = process.env.LINQ_API_TOKEN || "";
 const FROM = process.env.LINQ_NUMBER || "";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://posy.getcontios.com";
 
 export const linqMode: "live" | "off" = TOKEN && FROM ? "live" : "off";
+
+// Configure the "Posy" contact card (name + logo) on our number so recipients
+// can save us as a real contact instead of a bare number. Idempotent.
+export async function configureContactCard() {
+  if (linqMode === "off") return { ok: false, skipped: true };
+  const payload = {
+    phone_number: FROM,
+    first_name: "Posy",
+    image_url: `${APP_URL}/posy-contact.png`,
+  };
+  const headers = { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
+  // Upsert: create, and if one already exists (409) update it via PATCH.
+  let res = await fetch(`${BASE}/contact_card`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (res.status === 409) {
+    res = await fetch(`${BASE}/contact_card?phone_number=${encodeURIComponent(FROM)}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ first_name: "Posy", image_url: `${APP_URL}/posy-contact.png` }),
+    });
+  }
+  const body = await res.text();
+  return { ok: res.ok, status: res.status, body: body.slice(0, 300) };
+}
+
+let cardEnsured = false;
+export async function ensureContactCard() {
+  if (cardEnsured || linqMode === "off") return;
+  try {
+    await configureContactCard();
+    cardEnsured = true;
+  } catch (e) {
+    console.error("[linq] configure contact card failed", e);
+  }
+}
+
+// Share the configured contact card into a chat (iMessage only, needs a prior
+// outbound message in the thread).
+export async function shareContactCard(chatId: string) {
+  if (linqMode === "off" || !chatId) return { ok: false, skipped: true };
+  const res = await fetch(`${BASE}/chats/${chatId}/share_contact_card`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}` },
+  });
+  return { ok: res.ok, status: res.status };
+}
 
 // Send a plain-text message to a recipient over Linq.
 export async function sendLinqText(to: string, text: string) {

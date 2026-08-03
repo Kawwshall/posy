@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { runTurn } from "@/lib/orchestrator";
-import { renderForText, sendLinqText } from "@/lib/linq";
+import { ensureContactCard, renderForText, sendLinqText, shareContactCard } from "@/lib/linq";
 import { clearConversation, getConversation, log, setConversation } from "@/lib/store";
+import { db } from "@/lib/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +38,10 @@ export async function POST(req: NextRequest) {
 
   const phone: string = data.sender_handle?.handle || "";
   const text: string = (data.parts || []).find((p: any) => p.type === "text")?.value || "";
-  console.log(`[linq] inbound from ${phone}: "${text.slice(0, 80)}"`);
+  const chatId: string = data.chat?.id || "";
+  const service: string = data.sender_handle?.service || data.chat?.owner_handle?.service || "";
+  const isNewSender = !db().conversations[phone];
+  console.log(`[linq] inbound from ${phone} (${service}${isNewSender ? ", new" : ""}): "${text.slice(0, 80)}"`);
 
   if (!phone || !text.trim()) {
     return NextResponse.json({ ok: true, ignored: "empty" });
@@ -60,6 +64,13 @@ export async function POST(req: NextRequest) {
       for (const line of lines) {
         const r = await sendLinqText(phone, line);
         console.log(`[linq] sent part -> ${JSON.stringify(r)}`);
+      }
+      // On the first message from a new iMessage sender, offer the Posy contact
+      // card (name + logo) now that there is a prior outbound message.
+      if (isNewSender && /imessage/i.test(service) && chatId) {
+        await ensureContactCard();
+        const c = await shareContactCard(chatId);
+        console.log(`[linq] shared contact card -> ${JSON.stringify(c)}`);
       }
     } catch (e: any) {
       console.error("[linq] background error", e?.message || e);
