@@ -156,8 +156,18 @@ export async function curate(
     "gift box INR",
   ].join(" ");
   const live = await searchLiveProducts(liveQuery);
-  const withinBudget = live.filter((product) => brief.budget == null || product.price <= brief.budget);
-  const candidatePool = withinBudget.length ? withinBudget : live.length ? live : ranked;
+  const budgetOk = (p: GiftProduct) => brief.budget == null || p.price <= brief.budget;
+  // Build a de-duplicated pool that always prefers real merchant products that
+  // fit the budget, then budget-fit demo ideas, then anything else, so we never
+  // dead-end with only over-budget live items to show.
+  const seen = new Set<string>();
+  const take = (arr: GiftProduct[]) => arr.filter((p) => (seen.has(p.id) ? false : seen.add(p.id)));
+  const candidatePool = [
+    ...take(live.filter(budgetOk)),
+    ...take(ranked.filter(budgetOk)),
+    ...take(live),
+    ...take(ranked),
+  ];
   const top = candidatePool.slice(0, 3);
 
   if (openaiMode === "mock" || top.length === 0) {
