@@ -71,12 +71,23 @@ async function hydrate(hit: SearchHit): Promise<GiftProduct | undefined> {
     merchantDomain: hit.merchant,
   });
   const product = data?.product;
+  // Accept any purchasable variant with a price. Merchants return a mix of
+  // currencies (many Shopify stores price in USD even when they ship to India),
+  // so we no longer require INR. Prefer an INR variant, then cheapest.
   const variants: Variant[] = (product?.variants || []).filter(
-    (variant: Variant) => variant.available && variant.currency === "INR" && variant.priceAmount > 0
+    (variant: Variant) => variant.available !== false && variant.priceAmount > 0
   );
-  variants.sort((a, b) => a.priceAmount - b.priceAmount);
+  variants.sort((a, b) => {
+    const ai = /inr/i.test(a.currency) ? 0 : 1;
+    const bi = /inr/i.test(b.currency) ? 0 : 1;
+    return ai - bi || a.priceAmount - b.priceAmount;
+  });
   const variant = variants[0];
   if (!variant) return undefined;
+  // priceAmount is in the currency's minor unit. Convert non-INR to rupees so
+  // budgets and the rupee display stay coherent.
+  const major = variant.priceAmount / 100;
+  const price = /inr/i.test(variant.currency) ? Math.round(major) : Math.round(major * 88);
   const description = String(product.description || hit.title).slice(0, 280);
   const merchant = variant.merchantDomain || hit.merchant;
   return {
@@ -85,7 +96,7 @@ async function hydrate(hit: SearchHit): Promise<GiftProduct | undefined> {
     variantId: variant.id,
     title: variant.label || hit.title,
     description,
-    price: Math.round(variant.priceAmount / 100),
+    price,
     currency: "INR",
     merchant,
     merchantUrl: `https://${merchant}`,
