@@ -9,6 +9,7 @@ import {
   pravaMode,
   reportPaymentStatus,
   revokeSession,
+  sandboxTestCard,
 } from "./prava";
 import { db, log } from "./store";
 import {
@@ -31,6 +32,7 @@ const AFFIRM = /\b(yes|yep|yeah|yup|sure|ok|okay|do it|send it|send|go|confirm|c
 const DECLINE = /\b(no|nope|nah|cancel|stop|wait|don'?t|not now)\b/i;
 const RECURRING = /\b(every year|each year|annually|recurring|remember|never miss|every birthday|every month|monthly)\b/i;
 const CHECK_PAYMENT = /\b(i('| a)?ve approved|approved with prava|check payment|check status|continue checkout|payment done)\b/i;
+const SIMULATE = /\b(simulate sandbox settlement|complete sandbox checkout|demo settle|simulate settlement)\b/i;
 
 function resolveSelection(text: string, opts: OptionCard): string | undefined {
   const t = text.toLowerCase();
@@ -207,6 +209,61 @@ async function finalizePurchase(sessionId: string, giftMessage?: string): Promis
   ];
 }
 
+// A deterministic, clearly-labelled sandbox settlement for demos. It does not
+// depend on the hosted card page succeeding: it settles with the documented
+// Prava sandbox test credential so a demo or video always reaches a receipt.
+// It is still sandbox only. No real money moves and no retail order is placed.
+async function finalizeSimulated(sessionId: string): Promise<ChatMessage[]> {
+  const payment = db().pendingPayments[sessionId];
+  if (!payment) {
+    return [msg({ role: "assistant", text: "That payment session is no longer active. Please choose the gift again." })];
+  }
+  const product = payment.product || findProduct(payment.productId);
+  if (!product) {
+    delete db().pendingPayments[sessionId];
+    return [msg({ role: "assistant", text: "That product is no longer available. I can find a fresh option." })];
+  }
+
+  const card = sandboxTestCard();
+  log({
+    kind: "card_issued",
+    title: "Sandbox test credential settled (simulated)",
+    detail: `${card.brand} •••• ${card.last4} · documented Prava sandbox test card`,
+    amount: product.price,
+    meta: { last4: card.last4, simulated: true },
+  });
+
+  const orderRef = "SBX-" + payment.orderId.slice(-8).toUpperCase();
+  db().monthSpent += product.price;
+  log({
+    kind: "charged",
+    title: `Sandbox settlement simulated · ${money(product.price)}`,
+    detail: `${product.merchant} · ${orderRef} · no real money, no retail order`,
+    amount: product.price,
+  });
+
+  const receipt: Receipt = {
+    id: "rcpt_" + Math.random().toString(36).slice(2, 10),
+    product,
+    amount: product.price,
+    card: { brand: card.brand, last4: card.last4 },
+    merchant: product.merchant,
+    orderRef,
+    recipient: payment.brief.recipient,
+    eta: etaFor(product.deliveryDays),
+    createdAt: new Date().toISOString(),
+    environment: pravaEnvironment,
+  };
+  db().receipts.unshift(receipt);
+  delete db().pendingPayments[sessionId];
+  log({ kind: "receipt", title: "Sandbox checkout completed (simulated for demo)", detail: `${product.title}`, amount: product.price, meta: { receipt_id: receipt.id, simulated: true } });
+
+  return [
+    msg({ role: "assistant", rich: { kind: "receipt", data: receipt } }),
+    msg({ role: "assistant", text: "Settled in the Prava sandbox for the demo. This path uses the documented sandbox test card, so no real money moved and no retail order was placed." }),
+  ];
+}
+
 export async function runTurn(
   text: string,
   state: AgentState
@@ -224,6 +281,11 @@ export async function runTurn(
         delete db().pendingPayments[next.pendingPaymentId];
         next.pendingPaymentId = undefined;
         messages.push(msg({ role: "assistant", text: "Payment cancelled. The Prava session was revoked and nothing was charged." }));
+        return { messages, state: next };
+      } else if (SIMULATE.test(text)) {
+        const finalized = await finalizeSimulated(next.pendingPaymentId);
+        messages.push(...finalized);
+        next.pendingPaymentId = undefined;
         return { messages, state: next };
       } else if (CHECK_PAYMENT.test(text) || AFFIRM.test(text)) {
         const finalized = await finalizePurchase(next.pendingPaymentId);

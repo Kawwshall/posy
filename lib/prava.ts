@@ -39,6 +39,21 @@ function rid(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 12)}`;
 }
 
+// The documented Prava sandbox test card, surfaced so a demoer knows exactly
+// what to enter in the hosted checkout window, and used by the labelled
+// "simulate sandbox settlement" demo path.
+export function sandboxTestCard() {
+  return {
+    number: "4622 9431 2313 7789",
+    token: TEST_CARD.token,
+    cvv: TEST_CARD.dynamic_cvv,
+    expiry: `${TEST_CARD.expiry_month}/${TEST_CARD.expiry_year}`,
+    otp: "456789",
+    brand: TEST_CARD.brand,
+    last4: TEST_CARD.last4,
+  };
+}
+
 async function pravaFetch(path: string, init: RequestInit) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);

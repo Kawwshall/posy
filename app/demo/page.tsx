@@ -460,8 +460,17 @@ function PaymentApprovalCard({ data, onAction, disabled }: { data: PaymentApprov
         <div className="mt-1 text-[11px] leading-snug text-muted">
           {mock
             ? "Mock mode: simulate the approval to continue the offline demo."
-            : "Open Prava, enter the sandbox card, complete OTP and passkey approval, then return here."}
+            : "Open Prava, enter the sandbox test card below, complete OTP and passkey, then check status. Or settle in-sandbox for the demo."}
         </div>
+
+        {!mock && (
+          <div className="mono mt-2 rounded-lg border border-line bg-paper px-3 py-2 text-[11px] leading-relaxed text-ink">
+            <div className="mb-1 text-[9px] uppercase tracking-[0.14em] text-claret">Prava sandbox test card</div>
+            <div>card 4622 9431 2313 7789</div>
+            <div>exp 12/27 · cvv 757 · otp 456789</div>
+          </div>
+        )}
+
         <div className="mt-3 flex flex-col gap-2">
           {!mock && (
             <a
@@ -481,6 +490,16 @@ function PaymentApprovalCard({ data, onAction, disabled }: { data: PaymentApprov
           >
             {mock ? "Simulate approval" : "I’ve approved — check status"}
           </button>
+          {!mock && (
+            <button
+              type="button"
+              onClick={() => onAction("simulate sandbox settlement")}
+              disabled={disabled}
+              className="rounded-lg border border-line py-2 text-[13px] font-medium text-ink hover:bg-paper disabled:cursor-default disabled:opacity-50"
+            >
+              Complete sandbox checkout (demo)
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onAction("cancel payment")}
